@@ -40,7 +40,7 @@ export default async function Home() {
             </p>
           </div>
 
-          <LatestPost />
+          {/* <LatestPost /> */}
         </div>
       </main>
     </HydrateClient>
