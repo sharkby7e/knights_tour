@@ -1,24 +1,25 @@
-# README
+# Knight's Tour
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+A Rails app for playing the [Knight's Tour](https://en.wikipedia.org/wiki/Knight%27s_tour) puzzle: move a knight around a chessboard, visiting every square exactly once.
 
-Things you may want to cover:
+## Local development
 
-* Ruby version
+Install the Ruby version pinned in `.tool-versions` with whatever version manager you use (I use [mise](https://mise.jdx.dev/): `mise install`). Docker is only needed later, for building/deploying the production image.
 
-* System dependencies
+```bash
+bundle install
+bin/rails db:prepare  # creates and migrates the database
+bin/dev               # starts Rails + the Tailwind watcher (Procfile.dev)
+```
 
-* Configuration
+Visit `http://localhost:3000`.
 
-* Database creation
+### Tests
 
-* Database initialization
+```bash
+bundle exec rspec
+```
 
-* How to run the test suite
+## Deployment
 
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+Deployed with [Kamal](https://kamal-deploy.org/) to a Hetzner Cloud VPS. See `config/deploy.yml`.
