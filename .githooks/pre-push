@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# Runs before `git push`. Blocks the push if RuboCop fails.
+# Enabled via: git config core.hooksPath .githooks
+
+echo "Running RuboCop before push..."
+bin/rubocop
+status=$?
+
+if [ $status -ne 0 ]; then
+  echo ""
+  echo "RuboCop failed. Fix offenses (bin/rubocop -a for autocorrect) or"
+  echo "skip this hook with 'git push --no-verify' if you really need to."
+  exit 1
+fi
+
+exit 0

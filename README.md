@@ -20,6 +20,14 @@ Visit `http://localhost:3000`.
 bundle exec rspec
 ```
 
+### Linting
+
+RuboCop runs in CI, and there's a `pre-push` hook that runs it locally too. Enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## Deployment
 
 Deployed with [Kamal](https://kamal-deploy.org/) to a Hetzner Cloud VPS. See `config/deploy.yml`.
