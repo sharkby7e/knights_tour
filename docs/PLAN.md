@@ -11,7 +11,7 @@
 - [ ] 8. Kamal 2 config + first deploy (includes Postgres accessory)
 - [ ] 9. End-to-end verification of the deployed app
 
-Pick up at step 5 (port game logic), on the `port-game-logic` branch (already created and checked out as of 2026-08-06, no commits on it yet). The reference files to port from live in the old app at `~/lab/knights_tour_ruby` (see paths below).
+Pick up at step 5 (port game logic), on the `port-game-logic` branch (checked out as of 2026-08-06, caught up with `main` but no step-5 work committed yet). The reference files to port from live in the old app at `~/lab/knights_tour_ruby` (see paths below).
 
 ---
 
