@@ -1,0 +1,18 @@
+<% odds = (0...8).to_a + (16...24).to_a + (32...40).to_a + (48...56).to_a %>
+<% if fail_state == true %>
+  <% bg_class = "bg-zinc-700" %>
+<% elsif square.has_been_visited? %>
+  <% bg_class = "bg-red-400" %>
+<% elsif odds.include?(index) %>
+  <% bg_class = index.even? ? "bg-slate-100" : "bg-slate-500" %>
+<% else %>
+  <% bg_class = index.odd? ? "bg-slate-100" : "bg-slate-500" %>
+<% end %>
+
+<div class="w-10 h-10 sm:w-24 sm:h-24 flex items-center justify-center text-3xl sm:text-5xl border border-gray-400 <%= bg_class %>" data-turbo-prefetch="false">
+  <%= link_to_if legal_square, "", squares_path(location: { x: square.x, y: square.y }), class: "w-full h-full bg-emerald-400" do %>
+    <% if square.has_knight? && !fail_state %>
+      ♞
+    <% end %>
+  <% end %>
+</div>

@@ -1,0 +1,17 @@
+<div class="bg-zinc-800 p-8 h-full w-full flex flex-col items-center justify-center space-y-10">
+  <h1 class="text-4xl text-zinc-300 font-semibold">A Knight's Tour</h1>
+  <div class="flex flex-col sm:flex-row gap-x-10 gap-y-10 items-center">
+    <div class="grid grid-rows-8 grid-cols-8">
+      <% @squares.each_with_index do |square, idx| %>
+        <%= render "square", square: square, index: idx, legal_square: @new_game || @legal_squares.include?(square), fail_state: @fail_state %>
+      <% end %>
+    </div>
+    <div class="flex flex-col space-y-4 text-3xl text-zinc-300 text-center">
+      <p>Visited Squares</p>
+      <p><%= @visited_squares || "0" %></p>
+      <div class="<%= "invisible" if @new_game %> <%= "animate-bounce" if @fail_state %>">
+        <%= link_to(@game.won? ? "Congrats!" : "Restart", squares_path, data: { turbo_prefetch: false }) %>
+      </div>
+    </div>
+  </div>
+</div>
