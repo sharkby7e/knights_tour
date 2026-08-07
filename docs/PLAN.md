@@ -5,13 +5,13 @@
 - [x] 3. Git init + push to `sharkby7e/knights_tour` on GitHub
 - [x] README written for local dev setup
 - [x] 4. Switch primary database from SQLite to Postgres
-- [ ] 5. Port the game logic, lightly cleaned (Square model, `app/services/move_finder.rb`, new `app/services/knight_tour_game.rb`, thin `SquaresController`, views, specs) — **not started, next step**
-- [ ] 6. Docker verification (local build/run before touching Hetzner)
+- [x] 5. Port the game logic, lightly cleaned (Square model, `app/services/move_finder.rb`, new `app/services/knight_tour_game.rb`, thin `SquaresController`, views, specs)
+- [ ] 6. Docker verification (local build/run before touching Hetzner) — **not started, next step**
 - [ ] 7. Hetzner VPS provisioning (user does this manually)
 - [ ] 8. Kamal 2 config + first deploy (includes Postgres accessory)
 - [ ] 9. End-to-end verification of the deployed app
 
-Pick up at step 5 (port game logic), on the `port-game-logic` branch (checked out as of 2026-08-06, caught up with `main` but no step-5 work committed yet). The reference files to port from live in the old app at `~/lab/knights_tour_ruby` (see paths below).
+Pick up at step 6 (Docker verification), on the `port-game-logic` branch. Step 5 (port game logic) is implemented and passing specs but **not yet committed** — see step 5 below for what's staged/untracked. The reference files it was ported from live in the old app at `~/lab/knights_tour_ruby` (see paths below).
 
 ---
 
@@ -74,7 +74,7 @@ Verified: local Homebrew Postgres running, `bin/rails db:create db:migrate` crea
 
 Separately noticed, not fixed (out of scope for this step, pre-existing): `bin/dev`'s `css` process (`bin/rails tailwindcss:watch`) exits immediately instead of staying in watch mode, which makes foreman tear down the whole `bin/dev` process group. Unrelated to the Postgres switch — worth a look before step 5's UI work, since watch mode not working makes Tailwind iteration slower.
 
-### 5. Port the game logic, lightly cleaned
+### 5. Port the game logic, lightly cleaned — done (not yet committed)
 
 Reference files in the old app: `~/lab/knights_tour_ruby/app/helpers/move_finder.rb`, `~/lab/knights_tour_ruby/app/controllers/squares_controller.rb`, `~/lab/knights_tour_ruby/app/models/square.rb`, `~/lab/knights_tour_ruby/app/views/squares/index.html.erb` + `_square.html.erb`, `~/lab/knights_tour_ruby/app/views/layouts/application.html.erb`, `~/lab/knights_tour_ruby/config/routes.rb`, `~/lab/knights_tour_ruby/db/schema.rb` + `db/seeds.rb`, `~/lab/knights_tour_ruby/spec/helpers/move_finder_spec.rb`, `~/lab/knights_tour_ruby/spec/controllers/squares_controller_spec.rb`, `~/lab/knights_tour_ruby/spec/factories.rb`. All already read once this session — full contents were fetched, so re-reading should be quick to confirm nothing changed.
 
@@ -94,6 +94,23 @@ Specs (RSpec only):
 - `spec/requests/squares_spec.rb` — port from `spec/controllers/squares_controller_spec.rb` (already request-style).
 
 Explicitly out of scope for this pass (call this out, don't silently half-do it): `Square` stays a single global 64-row board with no per-session/per-user scoping — same limitation as today, deferred to the later remodel. Moves also stay full-page navigations with `params[:location]` in the URL, same as the old app — replacing this with Turbo Streams/Frames (move without a full reload) is a real interaction redesign the user wants eventually, not a straight port, so it's deferred to its own later pass rather than folded into this one.
+
+Built pretty much as planned above, with a few deviations found along the way:
+
+- `KnightTourGame` ended up with the "clear every square's `has_knight`" side effect folded into `visit!` itself (`Square.update_all(has_knight: false)` at the top, then set the target square), rather than as a constructor side effect — keeps `KnightTourGame.new` a plain no-op PORO build. `reset!` clears both `has_knight` and `has_been_visited` in one `update_all`. Final method set matches the plan: `visit!(x:, y:)`, `legal_moves_from(square)`, `visited_count`, `won?`, `stuck?(square)`, `reset!`.
+- `SquaresController#index` is exactly the thin branch-on-`params[:location].blank?` shape the plan described, assigning ivars from `@game`'s query methods.
+- `spec/factories.rb` — fixed `x`/`y` to integers (`{ 1 }`) rather than carrying forward the old string factory.
+- `spec/services/move_finder_spec.rb` — fixed the copy-paste bug: the "filters out moves with a coord less than 1" example now correctly asserts `eq []` (all three stubbed candidates `[[0, 6], [-1, 3], [2, -1]]` fail the `.positive?` check on at least one coordinate), instead of the old file's copy-pasted `eq [[2, 8]]`.
+- `spec/requests/squares_spec.rb` uses `assigns[:...]`, ported verbatim from the old controller spec's assertions. That needs the `rails-controller-testing` gem (extracted out of rspec-rails core; the old app already depended on it) — added it to the `test` group. Considered rewriting the spec to assert on rendered HTML/DB state instead so we wouldn't need the extra gem, but decided to keep it matching the old app exactly.
+- `spec/support/factory_bot.rb` ported as-is (`config.include FactoryBot::Syntax::Methods`), and `spec/rails_helper.rb`'s commented-out support-glob require line got uncommented so it actually loads.
+
+Two real bugs surfaced during manual testing (not present in the old SQLite-backed app), both fixed:
+1. **Board rendered in the wrong visual position after a move.** `Square.all` has no `ORDER BY`, and unlike SQLite (which reliably returns rows in insertion/rowid order), Postgres makes no such guarantee — confirmed by querying `Square.all` before/after an `update_all` and seeing the same non-insertion-order row sequence both times. Since the grid's row-major CSS layout (`grid-rows-8 grid-cols-8`) depends on iteration order matching the seeded rank/file layout, this silently misplaced the knight/visited highlighting relative to the clicked square. Fixed by querying `Square.order(y: :desc, x: :asc)` explicitly in the controller instead of `Square.all`.
+2. **Hovering "Restart" reset the board without a click.** Turbo 8 (this app's Turbo version) preloads links on hover by default, firing a real GET to `squares_path` — which `SquaresController#index` treats as a fresh visit (`params[:location].blank?` → `@game.reset!`). The per-square links already had `data-turbo-prefetch="false"` on their wrapper (carried over from the old app), which happened to also suppress this for board moves, but the Restart/Congrats link never had that attribute — a gap that didn't bite in the old app's Turbo 7 setup, where hover-preload wasn't on by default. Fixed by adding `data: { turbo_prefetch: false }` to just that `link_to` call.
+
+Verified: `bundle exec rspec` passes (17 examples, 0 failures) covering `MoveFinder`, `KnightTourGame`, and the `squares#index` request spec. Manually played a full game via `bin/dev` in the browser — knight placement, legal-move highlighting, the visited counter, a win state, and a stuck/dead-end state all render correctly after the two fixes above; confirmed hovering Restart no longer wipes the board.
+
+Not yet done: nothing in this repo has been `git add`/committed yet — working tree has the new/modified files from this step sitting uncommitted on `port-game-logic`.
 
 ### 6. Docker verification (local, before touching Hetzner)
 
