@@ -6,12 +6,12 @@
 - [x] README written for local dev setup
 - [x] 4. Switch primary database from SQLite to Postgres
 - [x] 5. Port the game logic, lightly cleaned (Square model, `app/services/move_finder.rb`, new `app/services/knight_tour_game.rb`, thin `SquaresController`, views, specs)
-- [ ] 6. Docker verification (local build/run before touching Hetzner) — **not started, next step**
-- [ ] 7. Hetzner VPS provisioning (user does this manually)
+- [x] 6. Docker verification (local build/run before touching Hetzner)
+- [ ] 7. Hetzner VPS provisioning (user does this manually) — **not started, next step**
 - [ ] 8. Kamal 2 config + first deploy (includes Postgres accessory)
 - [ ] 9. End-to-end verification of the deployed app
 
-Pick up at step 6 (Docker verification), on the `port-game-logic` branch. Step 5 (port game logic) is implemented and passing specs but **not yet committed** — see step 5 below for what's staged/untracked. The reference files it was ported from live in the old app at `~/lab/knights_tour_ruby` (see paths below).
+Pick up at step 7 (Hetzner VPS provisioning) — this is a manual, user-driven step (real billable infra), not something to automate. Branch `port-game-logic` has been merged locally into `main` (fast-forward, no PR) since the game itself was feature-complete and tested; `main` is currently ahead of `origin/main` and not yet pushed. The reference files step 5 was ported from live in the old app at `~/lab/knights_tour_ruby` (see paths below), no longer relevant to steps 7+.
 
 ---
 
@@ -112,14 +112,29 @@ Verified: `bundle exec rspec` passes (17 examples, 0 failures) covering `MoveFin
 
 Not yet done: nothing in this repo has been `git add`/committed yet — working tree has the new/modified files from this step sitting uncommitted on `port-game-logic`.
 
-### 6. Docker verification (local, before touching Hetzner)
+### 6. Docker verification (local, before touching Hetzner) — done
+
+One correction to the plan's example commands: the generated Dockerfile `EXPOSE`s port 80, not 3000 — Thruster (`bin/thrust`) listens on 80 inside the container and reverse-proxies to Puma on its default internal port 3000 (`config/puma.rb`). So the port mapping is `-p 3000:80` (host:container), not `-p 3000:3000`.
 
 ```bash
 docker build -t knights_tour .
-docker run --rm -p 3000:3000 -e RAILS_MASTER_KEY=$(cat config/master.key) knights_tour
+
+docker network create knights_tour_net
+docker run -d --name knights_tour_postgres --network knights_tour_net \
+  -e POSTGRES_USER=knights_tour -e POSTGRES_PASSWORD=<local-test-password> \
+  -e POSTGRES_DB=knights_tour_production \
+  postgres:17
+
+docker run -d --name knights_tour_app --network knights_tour_net -p 3000:80 \
+  -e RAILS_MASTER_KEY=$(cat config/master.key) \
+  -e DB_HOST=knights_tour_postgres -e DB_PORT=5432 \
+  -e POSTGRES_USER=knights_tour -e POSTGRES_PASSWORD=<local-test-password> \
+  knights_tour
 ```
 
-Open `http://localhost:3000` — confirm the board renders, a move can be made, legal squares highlight, a win and a stuck/dead-end state both display. Hit `http://localhost:3000/up` for the health check. Since Postgres is now the primary DB, also confirm the containerized app can actually reach a Postgres instance (local `docker run postgres` container on the same Docker network, or equivalent) — this is the first point where a missing `libpq` runtime lib in the Dockerfile (see step 4) would surface.
+Resolved the step 4 "open item" about the official `postgres` image's `POSTGRES_DB` only creating one database on first boot: no init script needed. `bin/docker-entrypoint` runs `bin/rails db:prepare` before booting the server, and Rails' multi-database `db:prepare` connects as the (superuser) `POSTGRES_USER` and creates every configured database that doesn't exist yet — confirmed via container logs: `Created database 'knights_tour_production_cache'`, `_queue`, `_cable` (the primary `knights_tour_production` already existed from the postgres image's own `POSTGRES_DB` bootstrap). `db:prepare` also ran `db:seed` automatically since the databases were freshly created — confirmed `Square.count` was 64 with no separate seed step needed.
+
+Verified: `docker build` succeeds; `curl http://localhost:3000/up` → 200; a simulated move (`curl 'http://localhost:3000/squares?location%5Bx%5D=1&location%5By%5D=1'`) rendered the knight glyph, the correct two legal-move links (`(2,3)` and `(3,2)`), and a visited count of 1. User confirmed manually in the browser at `http://localhost:3000` that the containerized app renders and plays correctly, matching the native `bin/dev` version from step 5.
 
 ### 7. Hetzner VPS (user provisions this manually — real billable infra, not something to automate)
 
