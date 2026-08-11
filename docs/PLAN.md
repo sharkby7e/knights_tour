@@ -7,11 +7,11 @@
 - [x] 4. Switch primary database from SQLite to Postgres
 - [x] 5. Port the game logic, lightly cleaned (Square model, `app/services/move_finder.rb`, new `app/services/knight_tour_game.rb`, thin `SquaresController`, views, specs)
 - [x] 6. Docker verification (local build/run before touching Hetzner)
-- [ ] 7. Hetzner VPS provisioning (user does this manually) — **not started, next step**
-- [ ] 8. Kamal 2 config + first deploy (includes Postgres accessory)
-- [ ] 9. End-to-end verification of the deployed app
+- [x] 7. Hetzner VPS provisioning (user did this manually)
+- [x] 8. Kamal 2 config + first deploy (includes Postgres accessory)
+- [x] 9. End-to-end verification of the deployed app
 
-Pick up at step 7 (Hetzner VPS provisioning) — this is a manual, user-driven step (real billable infra), not something to automate. Branch `port-game-logic` has been merged locally into `main` (fast-forward, no PR) since the game itself was feature-complete and tested; `main` is currently ahead of `origin/main` and not yet pushed. The reference files step 5 was ported from live in the old app at `~/lab/knights_tour_ruby` (see paths below), no longer relevant to steps 7+.
+**The app is live** at `http://62.238.111.24/` (no domain yet — raw IP). Deployed via `kamal setup` on 2026-08-11. This closes out the initial-bring-up phase of the plan — per the user's standing preference, future feature work/refactors switch to a GitHub PR workflow (`gh pr create`) instead of local commits/merges to `main`, the way steps 4-9 were done.
 
 ---
 
@@ -136,103 +136,42 @@ Resolved the step 4 "open item" about the official `postgres` image's `POSTGRES_
 
 Verified: `docker build` succeeds; `curl http://localhost:3000/up` → 200; a simulated move (`curl 'http://localhost:3000/squares?location%5Bx%5D=1&location%5By%5D=1'`) rendered the knight glyph, the correct two legal-move links (`(2,3)` and `(3,2)`), and a visited count of 1. User confirmed manually in the browser at `http://localhost:3000` that the containerized app renders and plays correctly, matching the native `bin/dev` version from step 5.
 
-### 7. Hetzner VPS (user provisions this manually — real billable infra, not something to automate)
+### 7. Hetzner VPS — done
 
-Via the Hetzner Cloud console:
-1. Add a local SSH public key to the project.
-2. Create a server — CAX11 (ARM, ~€4-5/mo, EU regions only — matches Apple Silicon for fast local builds) if an EU region works, otherwise CX22 (x86) in a US region.
-3. Ubuntu 24.04 LTS image; attach the SSH key; skip password auth.
-4. Note the server's public IP; confirm `ssh root@<ip>` works.
+Detoured through both DigitalOcean and Hetzner's ARM line before landing here — worth recording since it's not obvious from the final state:
 
-### 8. Kamal 2 config
+- Tried DigitalOcean first (cost concern about Hetzner's up-front account credit requirement for new accounts, which read as unexpectedly "predatory" friction). DO's cheapest tier (512MB RAM, $4/mo) was rejected as too small to safely run Rails+Puma+Postgres+Solid Queue together; the viable DO tier was $12/mo for 2GB.
+- Switched back to Hetzner. The plan's original ARM pick (CAX11) had no capacity available at signup time; the x86 CX23 (4GB, $6.49/mo) was also unavailable moments later, only CPX12 (x86, 2GB, $13.49/mo — Hetzner's shared-vCPU line) showed up as available. Rather than keep fighting availability across two providers, and since Hetzner required (and got) a prepaid credit deposit already, stuck with Hetzner and took whatever server type was actually available.
+- Final server: Hetzner CPX12, `eu-central` (Falkenstein), Ubuntu 26.04 LTS (not 24.04 — that's simply what Hetzner's image list currently defaults to), 2 vCPU / ~2GB usable RAM, x86_64. **Public IP: `62.238.111.24`.**
+- Confirmed via direct SSH before touching Kamal: `docker version 29.7.2` was already present (likely from an earlier partial `kamal setup` bootstrap run — see step 8), non-interactive SSH `$PATH` includes `/usr/bin` correctly.
 
-Edit the generated `config/deploy.yml`, adding a Postgres accessory (pattern from https://rameerez.com/kamal-tutorial-how-to-deploy-a-postgresql-rails-app/):
+2GB RAM (rather than the plan's original 4GB target) is fine for this app — it's a small single-page game with minimal traffic, no heavy background job load.
 
-```yaml
-service: knights_tour
-image: sharkby7e/knights_tour
+### 8. Kamal 2 config — done
 
-servers:
-  web:
-    - <HETZNER_SERVER_IP>
+Actual `config/deploy.yml` differs from the plan's draft in a few ways, captured here since the draft above is now superseded:
 
-proxy:
-  app_port: 3000
-  # no `host:` (no domain yet); do NOT set `ssl:` at all — a `false` boolean
-  # in the proxy section is a known Kamal bug, omitting the key is correct here
+- `builder.arch: amd64` (not `arm64`) — the CPX12 box is x86_64.
+- No `volumes:` block for `knights_tour_storage` — dropped entirely rather than carried forward commented-out, since the All-Postgres decision (step 4) means nothing needs a SQLite-backed volume.
+- `accessories.postgres.host` and `servers.web` both point at the real IP `62.238.111.24` (not a placeholder).
+- Otherwise matches the draft: `ghcr.io` registry under `sharkby7e`, `proxy.app_port: 3000` with no `host:`/`ssl:` keys (raw-IP access, no domain yet), `DB_HOST: knights_tour-postgres` for the accessory's internal Docker network hostname, Postgres 17 accessory with a `data:/var/lib/postgresql/data` named volume.
+- Did not add the optional `pg-backup` accessory — still not blocking, still open for later.
 
-registry:
-  server: ghcr.io
-  username: sharkby7e
-  password:
-    - KAMAL_REGISTRY_PASSWORD
+**Secrets — ended up on 1Password, not plain env exports.** The plan's draft assumed `export KAMAL_REGISTRY_PASSWORD=...` / `export POSTGRES_PASSWORD=...` in the shell before each `kamal` command. That's what was used for the actual `kamal setup` run, but both values got pasted into the terminal in a way that landed in this session's transcript — treated as burned afterward (GHCR PAT revoked and rotated; Postgres password left as-is since it's not externally exposed, only used internally on the box). Switched `.kamal/secrets` to 1Password instead, to avoid repeating that exposure on every future `kamal` command:
 
-builder:
-  arch: arm64   # amd64 if the server ended up being a CX (x86) instead
-
-env:
-  clear:
-    DB_HOST: knights_tour-postgres
-    POSTGRES_USER: knights_tour
-    POSTGRES_DB: knights_tour_production
-  secret:
-    - RAILS_MASTER_KEY
-    - POSTGRES_PASSWORD
-
-accessories:
-  postgres:
-    image: postgres:17
-    host: <HETZNER_SERVER_IP>   # same host as the web server (single-VPS setup)
-    env:
-      clear:
-        POSTGRES_USER: knights_tour
-        POSTGRES_DB: knights_tour_production
-      secret:
-        - POSTGRES_PASSWORD
-    directories:
-      - data:/var/lib/postgresql/data
-    # app <-> postgres traffic stays on Kamal's internal Docker network,
-    # not exposed publicly — no `port:` needed unless we want a local psql
-    # tunnel later (e.g. `port: "127.0.0.1:5432:5432"`)
-
-volumes:
-  - "knights_tour_storage:/rails/storage"   # only needed if Solid Queue/Cache/Cable
-                                              # stay on SQLite (mixed-adapter route,
-                                              # see step 4) — drop this entirely if
-                                              # everything moves to Postgres. Docker-
-                                              # managed named volume — keep this exact
-                                              # form, do not convert to a host bind-mount
-                                              # (a reversed bind-mount path is a
-                                              # documented cause of SQLite data loss
-                                              # on redeploy)
 ```
-
-`.kamal/secrets` (committed; references env vars, not literal secrets):
-```
+SECRETS=$(kamal secrets fetch --adapter 1password --account my --from Private/knights_tour KAMAL_REGISTRY_PASSWORD POSTGRES_PASSWORD)
+KAMAL_REGISTRY_PASSWORD=$(kamal secrets extract KAMAL_REGISTRY_PASSWORD ${SECRETS})
+POSTGRES_PASSWORD=$(kamal secrets extract POSTGRES_PASSWORD ${SECRETS})
 RAILS_MASTER_KEY=$(cat config/master.key)
-KAMAL_REGISTRY_PASSWORD=$KAMAL_REGISTRY_PASSWORD
-POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 ```
 
-Consider a separate `pg-backup` accessory (same article) for automated Postgres backups once the base deploy works — not blocking the first deploy.
+Setup: 1Password CLI (`op`, installed via `brew install --cask 1password-cli`) with the app's Settings → Developer → "Integrate with 1Password CLI" toggle on; account shorthand is `my` (from `my.1password.com`); secrets live in a Secure Note titled `knights_tour` in the `Private` vault, with two concealed custom fields labeled exactly `KAMAL_REGISTRY_PASSWORD` and `POSTGRES_PASSWORD` (field labels are looked up verbatim/case-sensitive by `kamal secrets extract`). `RAILS_MASTER_KEY` stayed on the file-read approach — no reason to move it to 1Password since `config/master.key` already covers it. Verified `kamal config` resolves fully with zero manually-exported env vars.
 
-Create a **classic** GitHub PAT with `write:packages` scope (GHCR doesn't support fine-grained PATs, and `gh`'s own OAuth token won't have this scope) at github.com/settings/tokens/new, then generate a Postgres password and set both:
+One hiccup during the actual `kamal setup` run: an early step failed with `Running docker -v on 62.238.111.24` / exit status 127 (command not found). Diagnosed by SSHing in directly — Docker turned out to already be installed and working fine (PATH was correct too), so this reads as a timing artifact from Kamal's own bootstrap-then-check sequence rather than a real problem. Re-running `kamal setup` completed successfully past that point.
 
-```bash
-export KAMAL_REGISTRY_PASSWORD=ghp_xxxxxxxxxxxx
-export POSTGRES_PASSWORD=$(openssl rand -hex 32)   # save this — needed for future kamal commands too
-kamal setup      # first deploy: installs Docker on the server, builds/pushes
-                  # the image, boots the postgres accessory, sets up kamal-proxy,
-                  # deploys, runs migrations
-```
+Subsequent deploys: `bin/kamal deploy`. Debugging: `bin/kamal app logs`, `bin/kamal app details`, `bin/kamal proxy logs`, `bin/kamal accessory logs postgres`. Console/db access: `bin/kamal console` (Rails console), `bin/kamal dbc` (psql via `rails dbconsole`), `bin/kamal shell` (raw shell) — all three exec into the live container, no separate credentials needed beyond what `.kamal/secrets` already resolves.
 
-Subsequent deploys: `kamal deploy`. Debugging: `kamal app logs`, `kamal app details`, `kamal proxy logs`, `kamal accessory logs postgres`.
+### 9. Verify end-to-end — done
 
-### 9. Verify end-to-end
-
-```bash
-curl -I http://<HETZNER_SERVER_IP>/up   # expect 200
-open http://<HETZNER_SERVER_IP>/
-```
-
-Play a full game in the browser: place the knight, chain legal moves, confirm the visited counter, confirm both the win state and a dead-end/stuck state render correctly. Run `kamal app boot` and reload to confirm the Postgres-backed board survives (data lives in the `postgres` accessory's `data` volume, independent of app container restarts).
+`curl http://62.238.111.24/up` → 200, homepage → 200, `kamal app details` / `kamal accessory details postgres` both show healthy running containers. User confirmed manually in the browser that the live app is reachable and playable.
