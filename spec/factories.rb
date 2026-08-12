@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 FactoryBot.define do
-  factory :square do
-    x { 1 }
-    y { 1 }
+  factory :tour
+
+  factory :move do
+    tour
+    sequence(:position) { |n| n }
+    square { "e4" }
   end
 end

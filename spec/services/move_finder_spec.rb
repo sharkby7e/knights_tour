@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe MoveFinder do
-  let(:square) { create(:square, x: 1, y: 1) }
+  let(:square) { Square.new(x: 1, y: 1) }
   let(:finder) { MoveFinder.new(square:) }
 
   it 'initializes with a square with accessible coordinates' do
@@ -15,13 +15,13 @@ RSpec.describe MoveFinder do
   end
 
   describe '#legal_moves' do
-    it 'filters out moves that are off the board' do
-      expect(finder.legal_moves).to eq [ [ 2, 3 ], [ 3, 2 ] ]
+    it 'filters out moves that are off the board and returns Square instances' do
+      expect(finder.legal_moves).to eq [ Square.new(x: 2, y: 3), Square.new(x: 3, y: 2) ]
     end
 
     it 'filters out moves with a coord greater than 8' do
       expect(finder).to receive(:move_candidates).and_return [ [ 2, 8 ], [ 9, 8 ], [ 2, 9 ] ]
-      expect(finder.legal_moves).to eq [ [ 2, 8 ] ]
+      expect(finder.legal_moves).to eq [ Square.new(x: 2, y: 8) ]
     end
 
     it 'filters out moves with a coord less than 1' do
