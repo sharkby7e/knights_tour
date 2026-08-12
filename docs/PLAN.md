@@ -5,7 +5,7 @@
 - [x] 3. `Tour`/`Move` schema + migrations
 - [x] 4. `Tour`/`Move` models
 - [x] 5. `KnightTourGame` rewritten around `Tour`/`Move`
-- [ ] 6. Routes + controllers (plain HTML first, no Turbo Streams yet)
+- [x] 6. Routes + controllers (plain HTML first, no Turbo Streams yet)
 - [ ] 7. Turbo Stream views (no-full-reload interactivity)
 - [ ] 8. Cleanup (delete old Square/SquaresController/views, seeds, gems)
 
