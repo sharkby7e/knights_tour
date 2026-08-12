@@ -1,9 +1,9 @@
 # Progress
 
-- [ ] 1. JS `Square` port + `node:test` harness bootstrap
-- [ ] 2. JS `MoveFinder` port
-- [ ] 3. JS `KnightTourGame` port
-- [ ] 4. JS `boardView` pure render-state helper
+- [x] 1. JS `Square` port + `node:test` harness bootstrap
+- [x] 2. JS `MoveFinder` port
+- [x] 3. JS `KnightTourGame` port
+- [x] 4. JS `boardView` pure render-state helper
 - [ ] 5. `tours#new` skeleton route + view; retire `Tour.current`/`#current`
 - [ ] 6. Stimulus `TourController`: client-side play, no persistence yet
 - [ ] 7. `POST /tours` Save Tour endpoint: server-side replay validation
