@@ -9,9 +9,9 @@ class MoveFinder
   end
 
   def legal_moves
-    move_candidates.select do |candidate|
-      (candidate[0]).positive? && candidate[0] <= 8 && (candidate[1]).positive? && candidate[1] <= 8
-    end
+    move_candidates
+      .select { |x, y| (1..8).cover?(x) && (1..8).cover?(y) }
+      .map { |x, y| Square.new(x:, y:) }
   end
 
   def move_candidates
