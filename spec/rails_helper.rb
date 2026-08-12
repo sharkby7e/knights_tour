@@ -65,6 +65,12 @@ RSpec.configure do |config|
   # To enable this behaviour uncomment the line below.
   # config.infer_spec_type_from_file_location!
 
+  # Gives request specs `assert_turbo_stream`/`assert_no_turbo_stream`. rspec-rails
+  # doesn't fire the `:action_dispatch_integration_test` load hook turbo-rails
+  # normally relies on to include these, so wire them in explicitly.
+  config.include Turbo::TestAssertions, type: :request
+  config.include Turbo::TestAssertions::IntegrationTestAssertions, type: :request
+
   # Filter lines from Rails gems in backtraces.
   config.filter_rails_from_backtrace!
   # arbitrary gems may also be filtered via:
