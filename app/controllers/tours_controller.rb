@@ -1,6 +1,8 @@
 class ToursController < ApplicationController
   def current
-    redirect_to tour_path(Tour.current)
+    @tour = Tour.current
+    @game = KnightTourGame.new(tour: @tour)
+    render :show
   end
 
   def show
@@ -9,7 +11,7 @@ class ToursController < ApplicationController
   end
 
   def create
-    @tour = Tour.create!
-    redirect_to tour_path(@tour)
+    Tour.create!
+    redirect_to root_path
   end
 end

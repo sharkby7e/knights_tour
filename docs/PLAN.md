@@ -7,8 +7,7 @@
 - [x] 5. `KnightTourGame` rewritten around `Tour`/`Move`
 - [x] 6. Routes + controllers (plain HTML first, no Turbo Streams yet)
 - [x] 7a. Real board partials, still full-reload
-- [x] 7b. Turbo Streams for moves (create/destroy)
-- [ ] 7c. Turbo Streams for restart (tours#create)
+- [ ] 7b. Turbo Frame for the whole tour UI (moves, undo, restart) — supersedes an earlier Turbo Streams attempt, see step detail
 - [ ] 8. Cleanup (delete old Square/SquaresController/views, seeds, gems)
 
 ---
@@ -23,7 +22,7 @@ Branch `new-game-logic` is a deliberate rewrite of the game logic, not a patch. 
 - The 8×8 board itself is static/computable — no need to persist it as rows at all. `Square` becomes a plain Ruby value object, not an AR model.
 - A `Tour` represents one played-through attempt. Restarting creates a **new** `Tour` row rather than wiping the current one — old tours are kept on purpose, because future features are expected to build on tour history (e.g. "most visited squares across saved tours," creatively displaying past tours). Not building those features now, but not designing something that forecloses them either.
 - A `Move` is a first-class model (`belongs_to :tour`), not a value crammed into an array column — moves are independently interesting (cross-tour queries like "most visited squares"), and capped at 64 rows per tour so there's no row-count cost concern.
-- Moves persist to the DB (one small write each — an `INSERT`/`DELETE` on `moves`, never a board-wide update), but the page must not reload or re-render the whole 64-square grid per move — solved with Turbo Streams (targeted DOM patches), not Frames or full-page nav.
+- Moves persist to the DB (one small write each — an `INSERT`/`DELETE` on `moves`, never a board-wide update), and the page must not do a full-page navigation per move. First attempted with Turbo Streams doing targeted per-square DOM patches; simplified mid-branch to a single Turbo Frame wrapping the whole tour UI after manual testing surfaced a URL-staleness bug in the Streams-based restart and the diffing bookkeeping it required was judged not worth it at this app's scale (see step 7b for the full pivot writeup).
 - Per-user/per-session scoping is explicitly **out of scope this pass** — there's still one current global tour, same shared feel as before. But tours are expected to eventually belong to a user (to list "all of a user's solved tours"), so the route/URL shape already carries real tour ids (`resources :tours`, not a singular `resource :tour`) to avoid a breaking URL change when accounts land.
 
 This replaces `Square`/`KnightTourGame`/`SquaresController` and their specs/views entirely. It does not add accounts, does not build tour-history display features, and does not change deploy/infra (Kamal, Postgres, etc. are untouched — this is app-layer only).
@@ -268,7 +267,7 @@ Views: a minimal `app/views/tours/show.html.erb` reusing the existing Tailwind g
 
 **TDD**: extend `spec/requests/tours_spec.rb`'s `GET /tours/:id` case to assert real markup is present — 64 rendered squares, a visited-count element, a control (Restart) link — instead of just `be_successful`.
 
-Partials with stable DOM ids (these ids are what 7b/7c will target with Turbo Stream replaces, so get them right now):
+Partials with stable DOM ids (originally so 7b/7c could target them with Turbo Stream replaces; 7b's design changed mid-branch to a single Turbo Frame instead, see below, but the ids are harmless to keep and still useful hooks):
 - `tours/_board` — `<div id="board">`, iterates `Square.all`, renders `squares/_square` for each.
 - `squares/_square` — `<div id="<%= square.dom_id %>">`, checkerboard via `(square.x + square.y).odd?`, current/visited/legal states styled off `@game`, `link_to "", tour_moves_path(game.tour, square: square.notation), data: { turbo_method: "post", turbo_prefetch: false }` for legal squares.
 - `tours/_visited_count` — `<div id="visited_count">`.
@@ -278,42 +277,29 @@ Partials with stable DOM ids (these ids are what 7b/7c will target with Turbo St
 
 **Verify**: `bundle exec rspec spec/requests/` green. `bin/dev` manual click-through — moves/undo/restart work and render correctly, full reload per click still expected/fine at this stage.
 
-### 7b. Turbo Streams for moves (create/destroy)
+### 7b. Turbo Frame for the whole tour UI (moves, undo, restart)
 
-**Goal**: move/undo stop doing full-page navigation — only changed parts of the page get patched in place.
+**Goal**: moves, undo, and restart all stop doing full-page navigation, and the currently-active tour's id stays out of the URL bar — `/` always shows whichever `Tour` is current, before or after any of these actions.
 
-**TDD**: extend `spec/requests/moves_spec.rb` with Turbo Stream assertions: `text/vnd.turbo-stream.html` content type with `turbo-stream` tags targeting the right DOM ids; win/stuck renders (fabricated `Move` rows) show Congrats / full-board gray-out; a short real sequential-`POST` happy path (~5 moves); undo un-grays the board out of a stuck state. Use `Nokogiri::HTML5.fragment(response.body)` for assertions (transitive dependency already, no new gem).
+**Design pivot from the original 7b/7c plan** (below, kept for history): the first pass at this used Turbo Streams with manually-computed before/after square diffs (`@squares_to_refresh`) and shipped/passed its own tests (commit `da077c2` for moves, plus a follow-up commit for restart). Manual `bin/dev` testing then surfaced two problems:
+- The diffing bookkeeping was real, load-bearing complexity: four pieces of transient state per action (previous current square, previous legal squares, new current square, new legal squares) just to know which of the 64 squares actually changed.
+- Turbo Streams never touch the browser URL — only a Drive visit does. `ToursController#create` redirected to `tour_path(@tour)` for non-stream requests, and after switching restart to a Stream response, the address bar kept showing the *old* tour's URL post-restart. Not cosmetic: refreshing, bookmarking, or sharing that URL after a restart would land back on stale state.
 
-`MovesController` gains `respond_to { |f| f.turbo_stream; f.html { redirect_to ... } }`, computing what changed before/after mutating (previous square, new square, legal-move squares before/after) into `@squares_to_refresh`.
+Both problems are solved at once by dropping Streams for a single Turbo Frame around the whole tour UI, with `root` rendering inline instead of redirecting to a per-tour URL:
+- `ToursController#current` (the `root` action) renders `tours/show` directly against `Tour.current` instead of `redirect_to tour_path(...)`. The address bar is just `/`, always, regardless of which `Tour` id is actually current.
+- `tours/show.html.erb` wraps the existing board/visited_count/control partials (unchanged from 7a) in `<%= turbo_frame_tag "tour" do %> ... <% end %>`.
+- `MovesController#create`/`#destroy` and `ToursController#create` go back to a plain `redirect_to root_path` — no `respond_to`, no `*.turbo_stream.erb` views, no `@squares_to_refresh`. Since the triggering links/forms live inside the frame, Turbo automatically scopes their navigation to it: it follows the redirect, finds the matching `<turbo-frame id="tour">` in the response, and swaps only that content in — the surrounding page and URL never change. One plain HTML render now serves both a real full-page load of `/` and every in-page update.
+- `/tours/:id` (`show`) stays as a real route for a specific tour, unchanged — still useful for later tour-history features. Only the *current* tour's default experience at `/` stops exposing an id.
 
-```erb
-<%# app/views/moves/create.turbo_stream.erb %>
-<% if @game.stuck? %>
-  <%= turbo_stream.replace "board", partial: "tours/board", locals: { game: @game } %>
-<% else %>
-  <% @squares_to_refresh.each do |square| %>
-    <%= turbo_stream.replace square.dom_id, partial: "squares/square", locals: { square:, game: @game } %>
-  <% end %>
-<% end %>
-<%= turbo_stream.replace "visited_count", partial: "tours/visited_count", locals: { game: @game } %>
-<%= turbo_stream.replace "tour_control", partial: "tours/control", locals: { game: @game } %>
-```
+Trade-off accepted knowingly: every move now re-renders the whole frame (all 64 squares) server-side instead of just the changed ones — the same shape of cost 7a already had before Streams. Given the N+1 fix earlier in this branch already brought full-board render time down to ~10-20ms, this is imperceptible at this app's scale, and wasn't judged worth the diffing complexity it'd take to avoid.
 
-`moves/destroy.turbo_stream.erb` mirrors this using `@was_stuck` (undo always resolves a stuck state).
+**TDD**: rewrite `spec/requests/tours_spec.rb`'s `GET /` case to expect `be_successful` + real board markup instead of `redirect_to`; `POST /tours` and the moves specs to expect `redirect_to(root_path)` instead of `tour_path`/Turbo Stream assertions.
 
-Whole-board replace on stuck-entry/exit is required, not optional: the `_square` partial grays out *every* square when stuck, not just the current one — a pure per-square diff can't reproduce that.
+**Verify**: `bundle exec rspec spec/requests/` green. Manual browser check via `bin/dev`: devtools Network tab shows only a frame-scoped fetch per move/undo/restart (no full navigation); address bar stays on `/` throughout; stuck/win states still render correctly.
 
-**Verify**: `bundle exec rspec spec/requests/` green. Manual browser check via `bin/dev`: devtools Network tab shows only a `turbo-stream` fetch per move (no full navigation); undo restores the previous square as clickable; stuck/win states render correctly.
+#### 7b/7c, superseded (Turbo Streams with per-square diffing) — kept for history
 
-### 7c. Turbo Streams for restart (tours#create)
-
-**Goal**: Restart stops doing full-page navigation too, consistent with 7b.
-
-**TDD**: extend `spec/requests/tours_spec.rb`'s `POST /tours` case with a Turbo Stream assertion — response replaces `board`, `visited_count`, and `tour_control`, and the new board reflects the fresh (empty) tour, not the old one's moves.
-
-`ToursController#create` gains the same `respond_to` pattern. `tours/create.turbo_stream.erb` always full-replaces `board` + `visited_count` + `tour_control` (a restart is a wholesale swap to a new `Tour`, no partial diffing needed).
-
-**Verify**: `bundle exec rspec spec/requests/` green. Manual browser check via `bin/dev`: Restart button no longer triggers full navigation; Restart creates a genuinely new `Tour` row while the old tour's `Move`s remain (check via Rails console).
+`MovesController` gained `respond_to { |f| f.turbo_stream; f.html { redirect_to ... } }`, computing `@squares_to_refresh` (previous current square, new current square, previous/new legal-move squares) before/after `visit!`/`undo!`, with `moves/create.turbo_stream.erb`/`moves/destroy.turbo_stream.erb` doing per-square `turbo_stream.replace` calls — falling back to a whole-`#board` replace on stuck-entry/exit, since the `_square` partial grays out *every* square when stuck, not just the current one. `ToursController#create` got the same `respond_to` pattern, with `tours/create.turbo_stream.erb` unconditionally replacing `board`/`visited_count`/`tour_control`. Tests used `Turbo::TestAssertions::IntegrationTestAssertions` (wired into `rails_helper.rb` for RSpec request specs, since rspec-rails doesn't fire the load hook turbo-rails normally relies on for it) for `assert_turbo_stream`/`assert_no_turbo_stream`. This all worked and was fully tested, but was superseded by the Turbo Frame approach above once the URL-staleness bug and the diffing complexity prompted a design conversation.
 
 ### 8. Cleanup
 

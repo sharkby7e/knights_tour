@@ -1,10 +1,12 @@
-<div class="bg-zinc-800 p-8 h-full w-full flex flex-col items-center justify-center space-y-10">
-  <h1 class="text-4xl text-zinc-300 font-semibold">A Knight's Tour</h1>
-  <div class="flex flex-col sm:flex-row gap-x-10 gap-y-10 items-center">
-    <%= render "tours/board", game: @game %>
-    <div class="flex flex-col space-y-4 items-center">
-      <%= render "tours/visited_count", game: @game %>
-      <%= render "tours/control", game: @game %>
+<%= turbo_frame_tag "tour", class: "contents" do %>
+  <div class="bg-zinc-800 p-8 h-full w-full flex flex-col items-center justify-center space-y-10">
+    <h1 class="text-4xl text-zinc-300 font-semibold">A Knight's Tour</h1>
+    <div class="flex flex-col sm:flex-row gap-x-10 gap-y-10 items-center">
+      <%= render "tours/board", game: @game %>
+      <div class="flex flex-col space-y-4 items-center">
+        <%= render "tours/visited_count", game: @game %>
+        <%= render "tours/control", game: @game %>
+      </div>
     </div>
   </div>
-</div>
+<% end %>

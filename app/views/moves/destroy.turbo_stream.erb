@@ -1,9 +1,0 @@
-<% if @was_stuck %>
-  <%= turbo_stream.replace "board", partial: "tours/board", locals: { game: @game } %>
-<% else %>
-  <% @squares_to_refresh.each do |square| %>
-    <%= turbo_stream.replace square.dom_id, partial: "squares/square", locals: { square:, game: @game } %>
-  <% end %>
-<% end %>
-<%= turbo_stream.replace "visited_count", partial: "tours/visited_count", locals: { game: @game } %>
-<%= turbo_stream.replace "tour_control", partial: "tours/control", locals: { game: @game } %>

@@ -2,18 +2,24 @@ require "rails_helper"
 
 RSpec.describe "Tours", type: :request do
   describe "GET /" do
-    it "redirects to the current tour, creating one if none exists" do
+    it "renders the current tour inline, creating one if none exists" do
       expect { get root_path }.to change(Tour, :count).by(1)
 
-      expect(response).to redirect_to(tour_path(Tour.last))
+      expect(response).to be_successful
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.at_css("turbo-frame#tour")).to be_present
+      expect(doc.css("#board [id^='square_']").count).to eq(64)
     end
 
-    it "redirects to the existing current tour without creating another" do
+    it "renders the existing current tour without creating another" do
       existing = create(:tour)
+      create(:move, tour: existing, square: "a1", position: 1)
 
       expect { get root_path }.not_to change(Tour, :count)
 
-      expect(response).to redirect_to(tour_path(existing))
+      expect(response).to be_successful
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.at_css("#square_a1")).to be_present
     end
   end
 
@@ -55,14 +61,26 @@ RSpec.describe "Tours", type: :request do
   end
 
   describe "POST /tours" do
-    it "creates a new tour and redirects to it" do
+    it "creates a new tour and redirects to root, leaving the old tour's moves intact" do
       old_tour = create(:tour)
       old_move = create(:move, tour: old_tour)
 
       expect { post tours_path }.to change(Tour, :count).by(1)
 
-      expect(response).to redirect_to(tour_path(Tour.last))
+      expect(response).to redirect_to(root_path)
       expect(old_move.reload).to be_persisted
+    end
+
+    it "makes the fresh tour current, not the old one's state" do
+      old_tour = create(:tour)
+      create(:move, tour: old_tour, square: "a1", position: 1)
+
+      post tours_path
+      get root_path
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.at_css("#square_a1 a.bg-emerald-400")).to be_present
+      expect(doc.css("#board .bg-red-400")).to be_empty
     end
   end
 end
