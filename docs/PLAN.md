@@ -3,8 +3,8 @@
 - [x] 1. `Square` value object (replaces AR-backed `Square`)
 - [x] 2. `MoveFinder` adapted to return `Square` objects
 - [x] 3. `Tour`/`Move` schema + migrations
-- [ ] 4. `Tour`/`Move` models
-- [ ] 5. `KnightTourGame` rewritten around `Tour`/`Move`
+- [x] 4. `Tour`/`Move` models
+- [x] 5. `KnightTourGame` rewritten around `Tour`/`Move`
 - [ ] 6. Routes + controllers (plain HTML first, no Turbo Streams yet)
 - [ ] 7. Turbo Stream views (no-full-reload interactivity)
 - [ ] 8. Cleanup (delete old Square/SquaresController/views, seeds, gems)

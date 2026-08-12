@@ -1,95 +1,124 @@
 require 'rails_helper'
 
 RSpec.describe KnightTourGame do
-  let(:game) { described_class.new }
+  let(:tour) { create(:tour) }
+  let(:game) { described_class.new(tour:) }
 
-  describe '#visit!' do
-    it 'marks the square as carrying the knight and visited' do
-      square = create(:square, x: 1, y: 1)
-
-      visited = game.visit!(x: 1, y: 1)
-
-      expect(visited).to eq square
-      expect(square.reload.has_knight).to be true
-      expect(square.reload.has_been_visited).to be true
+  describe '#current_square' do
+    it 'is nil when no moves have been made' do
+      expect(game.current_square).to be_nil
     end
 
-    it 'clears the knight from every other square' do
-      previous = create(:square, x: 1, y: 1, has_knight: true)
-      next_square = create(:square, x: 2, y: 3)
+    it 'is the most recently visited square' do
+      create(:move, tour:, square: 'a1', position: 1)
+      create(:move, tour:, square: 'b3', position: 2)
 
-      game.visit!(x: 2, y: 3)
-
-      expect(previous.reload.has_knight).to be false
-      expect(next_square.reload.has_knight).to be true
+      expect(game.current_square).to eq Square.from_notation('b3')
     end
   end
 
   describe '#legal_moves_from' do
-    it 'returns the squares reachable by a knight move' do
-      square = create(:square, x: 1, y: 1)
-      legal_square = create(:square, x: 2, y: 3)
-      another_legal_square = create(:square, x: 3, y: 2)
+    it 'allows any square as the first move' do
+      expect(game.legal_moves_from).to eq Square.all
+    end
 
-      expect(game.legal_moves_from(square)).to eq [ legal_square, another_legal_square ]
+    it 'returns the squares reachable by a knight move from the current position' do
+      create(:move, tour:, square: 'a1', position: 1)
+
+      expect(game.legal_moves_from).to contain_exactly(Square.from_notation('c2'), Square.from_notation('b3'))
     end
 
     it 'excludes squares that have already been visited' do
-      square = create(:square, x: 1, y: 1)
-      create(:square, x: 2, y: 3, has_been_visited: true)
-      unvisited = create(:square, x: 3, y: 2)
+      create(:move, tour:, square: 'c2', position: 1)
+      create(:move, tour:, square: 'a1', position: 2)
 
-      expect(game.legal_moves_from(square)).to eq [ unvisited ]
+      expect(game.legal_moves_from).to eq [ Square.from_notation('b3') ]
+    end
+  end
+
+  describe '#visit!' do
+    it 'records a legal move' do
+      game.visit!(Square.from_notation('a1'))
+
+      expect(tour.moves.pluck(:square)).to eq [ 'a1' ]
+    end
+
+    it 'raises and records nothing for an illegal move' do
+      create(:move, tour:, square: 'a1', position: 1)
+
+      expect { game.visit!(Square.from_notation('h8')) }.to raise_error(KnightTourGame::IllegalMoveError)
+      expect(tour.moves.count).to eq 1
     end
   end
 
   describe '#visited_count' do
-    it 'counts the squares marked as visited' do
-      create(:square, x: 1, y: 1, has_been_visited: true)
-      create(:square, x: 2, y: 2, has_been_visited: false)
+    it 'counts the moves made in the tour' do
+      create(:move, tour:, square: 'a1', position: 1)
+      create(:move, tour:, square: 'b3', position: 2)
 
-      expect(game.visited_count).to eq 1
+      expect(game.visited_count).to eq 2
     end
   end
 
   describe '#won?' do
     it 'is true once every square has been visited' do
-      64.times { |n| create(:square, x: (n % 8) + 1, y: (n / 8) + 1, has_been_visited: true) }
+      Square.all.each_with_index { |square, i| create(:move, tour:, square: square.notation, position: i + 1) }
 
       expect(game.won?).to be true
     end
 
     it 'is false otherwise' do
-      create(:square, x: 1, y: 1, has_been_visited: true)
+      create(:move, tour:, square: 'a1', position: 1)
 
       expect(game.won?).to be false
     end
   end
 
   describe '#stuck?' do
-    it 'is true when every legal move has already been visited' do
-      square = create(:square, x: 1, y: 1)
-      create(:square, x: 2, y: 3, has_been_visited: true)
-      create(:square, x: 3, y: 2, has_been_visited: true)
+    it 'is true when every legal move from the current square has already been visited' do
+      # A real, legal sequence of knight moves that dead-ends in the a1 corner:
+      # c2 -> d4 -> b3 -> a1. a1 only has two legal moves (b3, c2), both already visited.
+      create(:move, tour:, square: 'c2', position: 1)
+      create(:move, tour:, square: 'd4', position: 2)
+      create(:move, tour:, square: 'b3', position: 3)
+      create(:move, tour:, square: 'a1', position: 4)
 
-      expect(game.stuck?(square)).to be true
+      expect(game.stuck?).to be true
     end
 
     it 'is false when a legal move remains' do
-      square = create(:square, x: 1, y: 1)
-      create(:square, x: 2, y: 3)
+      create(:move, tour:, square: 'a1', position: 1)
 
-      expect(game.stuck?(square)).to be false
+      expect(game.stuck?).to be false
+    end
+
+    it 'is false before any move has been made' do
+      expect(game.stuck?).to be false
     end
   end
 
-  describe '#reset!' do
-    it 'clears the visited and knight flags on every square' do
-      create(:square, x: 1, y: 1, has_been_visited: true, has_knight: true)
+  describe '#undo!' do
+    it 'removes the last move' do
+      create(:move, tour:, square: 'a1', position: 1)
+      create(:move, tour:, square: 'b3', position: 2)
 
-      game.reset!
+      game.undo!
 
-      expect(Square.pluck(:has_been_visited, :has_knight)).to eq [ [ false, false ] ]
+      expect(tour.moves.pluck(:square)).to eq [ 'a1' ]
+    end
+
+    it 'reverts the current square' do
+      create(:move, tour:, square: 'a1', position: 1)
+      create(:move, tour:, square: 'b3', position: 2)
+
+      game.undo!
+
+      expect(game.current_square).to eq Square.from_notation('a1')
+    end
+
+    it 'is a no-op on an empty tour' do
+      expect { game.undo! }.not_to raise_error
+      expect(tour.moves.count).to eq 0
     end
   end
 end

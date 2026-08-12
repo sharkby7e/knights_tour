@@ -1,30 +1,50 @@
 class KnightTourGame
-  def visit!(x:, y:)
-    Square.update_all(has_knight: false)
-    square = Square.find_by!(x: x, y: y)
-    square.update!(has_knight: true, has_been_visited: true)
-    square
+  class IllegalMoveError < StandardError; end
+
+  attr_reader :tour
+
+  def initialize(tour:)
+    @tour = tour
   end
 
-  def legal_moves_from(square)
-    MoveFinder.new(square: square).legal_moves
-      .filter_map { |x, y| Square.find_by(x: x, y: y) }
-      .reject(&:has_been_visited?)
+  def current_square
+    last = tour.moves.order(:position).last
+    last && Square.from_notation(last.square)
+  end
+
+  def visited?(square)
+    tour.moves.exists?(square: square.notation)
+  end
+
+  def legal_moves_from
+    return Square.all if tour.moves.none?
+    MoveFinder.new(square: current_square).legal_moves.reject { |square| visited?(square) }
+  end
+
+  def visit!(square)
+    raise IllegalMoveError, "#{square.notation} is not legal" unless legal_moves_from.include?(square)
+    tour.moves.create!(square: square.notation, position: next_position)
+  end
+
+  def undo!
+    tour.moves.order(:position).last&.destroy
   end
 
   def visited_count
-    Square.where(has_been_visited: true).count
+    tour.moves.count
   end
 
   def won?
     visited_count == 64
   end
 
-  def stuck?(square)
-    legal_moves_from(square).empty?
+  def stuck?
+    visited_count.positive? && !won? && legal_moves_from.empty?
   end
 
-  def reset!
-    Square.update_all(has_knight: false, has_been_visited: false)
+  private
+
+  def next_position
+    (tour.moves.maximum(:position) || 0) + 1
   end
 end
