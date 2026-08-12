@@ -6,7 +6,9 @@
 - [x] 4. `Tour`/`Move` models
 - [x] 5. `KnightTourGame` rewritten around `Tour`/`Move`
 - [x] 6. Routes + controllers (plain HTML first, no Turbo Streams yet)
-- [ ] 7. Turbo Stream views (no-full-reload interactivity)
+- [ ] 7a. Real board partials, still full-reload
+- [ ] 7b. Turbo Streams for moves (create/destroy)
+- [ ] 7c. Turbo Streams for restart (tours#create)
 - [ ] 8. Cleanup (delete old Square/SquaresController/views, seeds, gems)
 
 ---
@@ -260,15 +262,29 @@ Views: a minimal `app/views/tours/show.html.erb` reusing the existing Tailwind g
 
 **Verify**: `bundle exec rspec spec/requests/` green; `bin/dev` manual click-through — moves/undo/restart work, full reload per click expected/fine at this stage.
 
-### 7. Turbo Stream views (no-full-reload interactivity)
+### 7a. Real board partials, still full-reload
 
-**Goal**: moves/undo/restart stop doing full-page navigation — only changed parts of the page get patched in place.
+**Goal**: replace the `tours/show.html.erb` placeholder with the real board, still via ordinary full-page navigation — get the partials and their markup/DOM ids right before layering Turbo Streams on top in 7b/7c.
 
-**TDD**: extend `spec/requests/moves_spec.rb`/`tours_spec.rb` with Turbo Stream assertions: `text/vnd.turbo-stream.html` content type with `turbo-stream` tags targeting the right DOM ids; win/stuck renders (fabricated `Move` rows) show Congrats / full-board gray-out; a short real sequential-`POST` happy path (~5 moves); undo un-grays the board out of a stuck state. Use `Nokogiri::HTML5.fragment(response.body)` for assertions (transitive dependency already, no new gem).
+**TDD**: extend `spec/requests/tours_spec.rb`'s `GET /tours/:id` case to assert real markup is present — 64 rendered squares, a visited-count element, a control (Restart) link — instead of just `be_successful`.
 
-Partials with stable DOM ids: `tours/_board` (`<div id="board">`, iterates `Square.all`), `squares/_square` (`<div id="<%= square.dom_id %>">`, checkerboard via `(square.x + square.y).odd?`, `link_to "", tour_moves_path(game.tour, square: square.notation), data: { turbo_method: "post", turbo_prefetch: false }`), `tours/_visited_count` (`<div id="visited_count">`), `tours/_control` (Undo + Restart/Congrats, `<div id="tour_control">`).
+Partials with stable DOM ids (these ids are what 7b/7c will target with Turbo Stream replaces, so get them right now):
+- `tours/_board` — `<div id="board">`, iterates `Square.all`, renders `squares/_square` for each.
+- `squares/_square` — `<div id="<%= square.dom_id %>">`, checkerboard via `(square.x + square.y).odd?`, current/visited/legal states styled off `@game`, `link_to "", tour_moves_path(game.tour, square: square.notation), data: { turbo_method: "post", turbo_prefetch: false }` for legal squares.
+- `tours/_visited_count` — `<div id="visited_count">`.
+- `tours/_control` — Undo + Restart/Congrats, `<div id="tour_control">`.
 
-Controllers gain `respond_to { |f| f.turbo_stream; f.html { redirect_to ... } }`, computing what changed before/after mutating (previous square, new square, legal-move squares before/after) into `@squares_to_refresh`.
+`tours/show.html.erb` becomes a thin wrapper rendering these four partials with `game: @game`.
+
+**Verify**: `bundle exec rspec spec/requests/` green. `bin/dev` manual click-through — moves/undo/restart work and render correctly, full reload per click still expected/fine at this stage.
+
+### 7b. Turbo Streams for moves (create/destroy)
+
+**Goal**: move/undo stop doing full-page navigation — only changed parts of the page get patched in place.
+
+**TDD**: extend `spec/requests/moves_spec.rb` with Turbo Stream assertions: `text/vnd.turbo-stream.html` content type with `turbo-stream` tags targeting the right DOM ids; win/stuck renders (fabricated `Move` rows) show Congrats / full-board gray-out; a short real sequential-`POST` happy path (~5 moves); undo un-grays the board out of a stuck state. Use `Nokogiri::HTML5.fragment(response.body)` for assertions (transitive dependency already, no new gem).
+
+`MovesController` gains `respond_to { |f| f.turbo_stream; f.html { redirect_to ... } }`, computing what changed before/after mutating (previous square, new square, legal-move squares before/after) into `@squares_to_refresh`.
 
 ```erb
 <%# app/views/moves/create.turbo_stream.erb %>
@@ -283,11 +299,21 @@ Controllers gain `respond_to { |f| f.turbo_stream; f.html { redirect_to ... } }`
 <%= turbo_stream.replace "tour_control", partial: "tours/control", locals: { game: @game } %>
 ```
 
-`moves/destroy.turbo_stream.erb` mirrors this using `@was_stuck` (undo always resolves a stuck state). `tours/create.turbo_stream.erb` (restart) always full-replaces `board` + `visited_count` + `tour_control`.
+`moves/destroy.turbo_stream.erb` mirrors this using `@was_stuck` (undo always resolves a stuck state).
 
-Whole-board replace on stuck-entry/exit is required, not optional: the existing `_square` partial grays out *every* square when stuck, not just the current one — a pure per-square diff can't reproduce that.
+Whole-board replace on stuck-entry/exit is required, not optional: the `_square` partial grays out *every* square when stuck, not just the current one — a pure per-square diff can't reproduce that.
 
-**Verify**: `bundle exec rspec spec/requests/` green. Manual browser check via `bin/dev`: devtools Network tab shows only a `turbo-stream` fetch per move (no full navigation); undo restores the previous square as clickable; stuck/win states render correctly; Restart creates a genuinely new `Tour` row while the old tour's `Move`s remain (check via Rails console).
+**Verify**: `bundle exec rspec spec/requests/` green. Manual browser check via `bin/dev`: devtools Network tab shows only a `turbo-stream` fetch per move (no full navigation); undo restores the previous square as clickable; stuck/win states render correctly.
+
+### 7c. Turbo Streams for restart (tours#create)
+
+**Goal**: Restart stops doing full-page navigation too, consistent with 7b.
+
+**TDD**: extend `spec/requests/tours_spec.rb`'s `POST /tours` case with a Turbo Stream assertion — response replaces `board`, `visited_count`, and `tour_control`, and the new board reflects the fresh (empty) tour, not the old one's moves.
+
+`ToursController#create` gains the same `respond_to` pattern. `tours/create.turbo_stream.erb` always full-replaces `board` + `visited_count` + `tour_control` (a restart is a wholesale swap to a new `Tour`, no partial diffing needed).
+
+**Verify**: `bundle exec rspec spec/requests/` green. Manual browser check via `bin/dev`: Restart button no longer triggers full navigation; Restart creates a genuinely new `Tour` row while the old tour's `Move`s remain (check via Rails console).
 
 ### 8. Cleanup
 
