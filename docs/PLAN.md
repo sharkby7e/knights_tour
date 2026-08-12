@@ -7,7 +7,7 @@
 - [x] 5. `KnightTourGame` rewritten around `Tour`/`Move`
 - [x] 6. Routes + controllers (plain HTML first, no Turbo Streams yet)
 - [x] 7a. Real board partials, still full-reload
-- [ ] 7b. Turbo Frame for the whole tour UI (moves, undo, restart) — supersedes an earlier Turbo Streams attempt, see step detail
+- [x] 7b. Turbo Frame for the whole tour UI (moves, undo, restart) — supersedes an earlier Turbo Streams attempt, see step detail
 - [ ] 8. Cleanup (delete old Square/SquaresController/views, seeds, gems)
 
 ---
