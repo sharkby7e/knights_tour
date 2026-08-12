@@ -8,30 +8,39 @@ class KnightTourGame
   end
 
   def current_square
-    last = tour.moves.order(:position).last
-    last && Square.from_notation(last.square)
+    last_move && Square.from_notation(last_move.square)
+  end
+
+  def last_move
+    moves.last
   end
 
   def visited?(square)
-    tour.moves.exists?(square: square.notation)
+    visited_notations.include?(square.notation)
   end
 
   def legal_moves_from
-    return Square.all if tour.moves.none?
-    MoveFinder.new(square: current_square).legal_moves.reject { |square| visited?(square) }
+    @legal_moves_from ||= if moves.none?
+      Square.all
+    else
+      MoveFinder.new(square: current_square).legal_moves.reject { |square| visited?(square) }
+    end
   end
 
   def visit!(square)
     raise IllegalMoveError, "#{square.notation} is not legal" unless legal_moves_from.include?(square)
-    tour.moves.create!(square: square.notation, position: next_position)
+    move = tour.moves.create!(square: square.notation, position: next_position)
+    reset!
+    move
   end
 
   def undo!
-    tour.moves.order(:position).last&.destroy
+    last_move&.destroy
+    reset!
   end
 
   def visited_count
-    tour.moves.count
+    moves.size
   end
 
   def won?
@@ -44,7 +53,23 @@ class KnightTourGame
 
   private
 
+  # Loaded once per instance; visit!/undo! call reset! so a single
+  # KnightTourGame stays consistent across a mutation + subsequent reads.
+  def moves
+    @moves ||= tour.moves.order(:position).to_a
+  end
+
+  def visited_notations
+    @visited_notations ||= moves.map(&:square).to_set
+  end
+
   def next_position
-    (tour.moves.maximum(:position) || 0) + 1
+    (moves.map(&:position).max || 0) + 1
+  end
+
+  def reset!
+    @moves = nil
+    @legal_moves_from = nil
+    @visited_notations = nil
   end
 end

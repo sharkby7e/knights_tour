@@ -1,18 +1,26 @@
-<% odds = (0...8).to_a + (16...24).to_a + (32...40).to_a + (48...56).to_a %>
-<% if fail_state == true %>
-  <% bg_class = "bg-zinc-700" %>
-<% elsif square.has_been_visited? %>
-  <% bg_class = "bg-red-400" %>
-<% elsif odds.include?(index) %>
-  <% bg_class = index.even? ? "bg-slate-100" : "bg-slate-500" %>
-<% else %>
-  <% bg_class = index.odd? ? "bg-slate-100" : "bg-slate-500" %>
-<% end %>
+<%
+  stuck = game.stuck?
+  current = square == game.current_square
+  visited = game.visited?(square)
+  legal = !stuck && game.legal_moves_from.include?(square)
+  dark = (square.x + square.y).odd?
 
-<div class="w-10 h-10 sm:w-24 sm:h-24 flex items-center justify-center text-3xl sm:text-5xl border border-gray-400 <%= bg_class %>" data-turbo-prefetch="false">
-  <%= link_to_if legal_square, "", squares_path(location: { x: square.x, y: square.y }), class: "w-full h-full bg-emerald-400" do %>
-    <% if square.has_knight? && !fail_state %>
-      ♞
-    <% end %>
+  bg_class =
+    if stuck
+      "bg-zinc-700"
+    elsif current
+      "bg-emerald-500"
+    elsif visited
+      "bg-red-400"
+    elsif dark
+      "bg-slate-500"
+    else
+      "bg-slate-100"
+    end
+%>
+<div id="<%= square.dom_id %>" class="w-10 h-10 sm:w-24 sm:h-24 flex items-center justify-center text-3xl sm:text-5xl border border-gray-400 <%= bg_class %>" data-turbo-prefetch="false">
+  <%= link_to_if legal, "", tour_moves_path(game.tour, square: square.notation),
+        class: "w-full h-full bg-emerald-400", data: { turbo_method: :post, turbo_prefetch: false } do %>
+    <% if current %>♞<% end %>
   <% end %>
 </div>

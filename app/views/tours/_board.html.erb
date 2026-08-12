@@ -1,0 +1,5 @@
+<div id="board" class="grid grid-rows-8 grid-cols-8">
+  <% Square.all.each do |square| %>
+    <%= render "squares/square", square:, game: %>
+  <% end %>
+</div>
