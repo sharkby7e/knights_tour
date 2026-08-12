@@ -1,315 +1,295 @@
 # Progress
 
-- [x] 1. `Square` value object (replaces AR-backed `Square`)
-- [x] 2. `MoveFinder` adapted to return `Square` objects
-- [x] 3. `Tour`/`Move` schema + migrations
-- [x] 4. `Tour`/`Move` models
-- [x] 5. `KnightTourGame` rewritten around `Tour`/`Move`
-- [x] 6. Routes + controllers (plain HTML first, no Turbo Streams yet)
-- [x] 7a. Real board partials, still full-reload
-- [x] 7b. Turbo Frame for the whole tour UI (moves, undo, restart) — supersedes an earlier Turbo Streams attempt, see step detail
-- [x] 8. Cleanup (delete old Square/SquaresController/views, seeds, gems)
+- [ ] 1. JS `Square` port + `node:test` harness bootstrap
+- [ ] 2. JS `MoveFinder` port
+- [ ] 3. JS `KnightTourGame` port
+- [ ] 4. JS `boardView` pure render-state helper
+- [ ] 5. `tours#new` skeleton route + view; retire `Tour.current`/`#current`
+- [ ] 6. Stimulus `TourController`: client-side play, no persistence yet
+- [ ] 7. `POST /tours` Save Tour endpoint: server-side replay validation
+- [ ] 8. Wire the Save button to the real endpoint
+- [ ] 9. `#show` simplified to a read-only saved-tour view
+- [ ] 10. Cleanup: delete `MovesController`/specs/routes, dangling references, fold this plan's "complete" summary in
+- [ ] 11. (Optional/stretch) One Capybara+Cuprite end-to-end system spec
 
 ---
 
-# Rewrite game logic: Square model → Tour/Move model, Turbo Streams
+# Client-side game logic, deferred save
 
 ## Context
 
-The app was previously ported and deployed (Rails 8.1.3 + Postgres, live via Kamal on Hetzner at `http://62.238.111.24/`) with the board persisted as a single global 64-row `Square` table. Every move did `Square.update_all(has_knight: false)` (touches all 64 rows) plus a second row update — absurd for what's fundamentally a single-value change. Moves were also full-page GET navigations (`params[:location]`), so every click reloaded the entire page.
+Even after the Turbo Frame rewrite, every move still costs a full server round trip (~250-400ms measured against the live Hetzner `eu-central` deploy, dominated by network RTT, not server processing which is ~20ms). Making that feel instant requires removing the round trip from the play loop entirely, not just hiding it — so this branch moves knight-move legality and game state (`Square`/`MoveFinder`/`KnightTourGame`) into JavaScript and runs play fully client-side. The DB is touched exactly once, when the player explicitly clicks **Save Tour** — decided over auto-save-on-completion because it lets partial/abandoned attempts be saved too, and matches "we only create moves when we save" literally. Refresh-resilience (localStorage) was explicitly decided against for v1 — a refresh mid-play loses progress, same cost already accepted for other trade-offs on this app.
 
-Branch `new-game-logic` is a deliberate rewrite of the game logic, not a patch. Through discussion, the design that emerged:
-- The 8×8 board itself is static/computable — no need to persist it as rows at all. `Square` becomes a plain Ruby value object, not an AR model.
-- A `Tour` represents one played-through attempt. Restarting creates a **new** `Tour` row rather than wiping the current one — old tours are kept on purpose, because future features are expected to build on tour history (e.g. "most visited squares across saved tours," creatively displaying past tours). Not building those features now, but not designing something that forecloses them either.
-- A `Move` is a first-class model (`belongs_to :tour`), not a value crammed into an array column — moves are independently interesting (cross-tour queries like "most visited squares"), and capped at 64 rows per tour so there's no row-count cost concern.
-- Moves persist to the DB (one small write each — an `INSERT`/`DELETE` on `moves`, never a board-wide update), and the page must not do a full-page navigation per move. First attempted with Turbo Streams doing targeted per-square DOM patches; simplified mid-branch to a single Turbo Frame wrapping the whole tour UI after manual testing surfaced a URL-staleness bug in the Streams-based restart and the diffing bookkeeping it required was judged not worth it at this app's scale (see step 7b for the full pivot writeup).
-- Per-user/per-session scoping is explicitly **out of scope this pass** — there's still one current global tour, same shared feel as before. But tours are expected to eventually belong to a user (to list "all of a user's solved tours"), so the route/URL shape already carries real tour ids (`resources :tours`, not a singular `resource :tour`) to avoid a breaking URL change when accounts land.
+Known, accepted trade-off: today `/` shows one shared *live* tour — any visitor mid-play sees the same in-progress board. After this change, unsaved play only exists in the browser that's playing it; "shared" only applies to tours after they're saved. Intentional, discussed with the user, not something to design around.
 
-This replaces `Square`/`KnightTourGame`/`SquaresController` and their specs/views entirely. It does not add accounts, does not build tour-history display features, and does not change deploy/infra (Kamal, Postgres, etc. are untouched — this is app-layer only).
+Out of scope: accounts/auth, per-user scoping, the visited-squares-heatmap feature, deploy/infra config changes.
 
-**Working style for this branch**: test-drive (TDD: write the failing spec first, then the minimum code to pass it) each phase below, and clear context between phases freely — each phase is self-contained (states its own goal, files, and TDD spec-first steps) and ends with its own verification checkpoint and a natural commit boundary. Update this file's checkboxes and add narrative as phases complete, same living-plan convention as the rest of this doc.
+## Summary of what changes
+
+| Today | After |
+|---|---|
+| `root "tours#current"` — lazily creates/reuses `Tour.current` | `root "tours#new"` — static skeleton, no DB write |
+| `ToursController#current` | Removed |
+| `ToursController#show` | Kept, simplified to read-only (no legal-move links, no Undo/Restart) |
+| `ToursController#create` ("Restart") | Repurposed as **Save Tour**: accepts ordered `squares[]`, replays server-side through real `KnightTourGame`, persists transactionally |
+| `MovesController`, `resources :moves` | Deleted entirely — no more per-move network round trip |
+| `Tour.current` | Deleted |
+| `Square`, `MoveFinder`, `KnightTourGame` (Ruby) | Unchanged code, new role: server-side authority used only to validate a Save |
+| `spec/requests/moves_spec.rb` | Deleted |
+| `spec/requests/tours_spec.rb` | Rewritten for new `/`, `/tours/:id`, `POST /tours` behavior |
+| JS engine (`app/javascript/game/*.mjs`) | New — 1:1 port of `Square`/`MoveFinder`/`KnightTourGame`, unit tested via Node's built-in `node:test` (no new deps, no bundler, no `package.json`) |
+| `Stimulus TourController` | New — owns in-memory game state, wires clicks/undo/restart/save, re-renders whole board each change |
 
 ## Plan
 
-### 1. `Square` value object
+### 1. JS `Square` port + test harness
 
-**Goal**: replace the AR-backed `Square` with a plain Ruby value object representing a board coordinate. No DB involved yet.
+**Goal**: establish the JS test convention on the smallest class first. Use Node's built-in `node:test`/`node:assert` — zero install, nothing for Dependabot/`bin/importmap audit` to track, given this repo has no `package.json`/npm at all today.
 
-**TDD**: `spec/models/square_spec.rb` first, covering: `.from_notation("e4")` / `#notation` round-trip; `.all` returns 64 unique squares in rank8→1, file a→h order (matches the current `Square.order(y: :desc, x: :asc)` render order — this exact ordering assumption caused a real bug once already, see step 5 of the original bring-up plan below, worth pinning with a test); out-of-bounds coordinates and malformed notation both raise `ArgumentError`; equality (`==`) works for `.include?`/`.uniq` on arrays of squares.
+**Files**:
+- `app/javascript/game/square.mjs` — port of `app/models/square.rb`
+- `app/javascript/game/square.test.mjs` — mirrors `spec/models/square_spec.rb`
+- `bin/jstest`: `#!/usr/bin/env sh` + `exec node --test app/javascript/game` (chmod +x, matches `bin/rubocop` convention)
+- `config/importmap.rb`: explicit `pin "game/square", to: "game/square.mjs"` (not `pin_all_from`, for a predictable logical name)
 
-```ruby
-class Square < Data.define(:x, :y)
-  FILES = ("a".."h").to_a.freeze
+```js
+const FILES = ["a","b","c","d","e","f","g","h"]
 
-  def self.from_notation(notation)
-    match = notation.to_s.match(/\A([a-h])([1-8])\z/)
-    raise ArgumentError, "invalid square: #{notation.inspect}" unless match
-    new(x: FILES.index(match[1]) + 1, y: match[2].to_i)
-  end
-
-  def self.all
-    @all ||= 8.downto(1).flat_map { |y| (1..8).map { |x| new(x:, y:) } }.freeze
-  end
-
-  def initialize(x:, y:)
-    raise ArgumentError, "x out of bounds" unless (1..8).cover?(x)
-    raise ArgumentError, "y out of bounds" unless (1..8).cover?(y)
-    super
-  end
-
-  def notation = "#{FILES[x - 1]}#{y}"
-  def dom_id   = "square_#{notation}"
-end
+export class Square {
+  constructor(x, y) {
+    if (!Number.isInteger(x) || x < 1 || x > 8) throw new RangeError(`x out of bounds: ${x}`)
+    if (!Number.isInteger(y) || y < 1 || y > 8) throw new RangeError(`y out of bounds: ${y}`)
+    this.x = x; this.y = y
+    Object.freeze(this)
+  }
+  static fromNotation(notation) {
+    const match = /^([a-h])([1-8])$/.exec(String(notation))
+    if (!match) throw new RangeError(`invalid square: ${notation}`)
+    return new Square(FILES.indexOf(match[1]) + 1, Number(match[2]))
+  }
+  static all() {
+    if (!Square._all) {
+      const squares = []
+      for (let y = 8; y >= 1; y--) for (let x = 1; x <= 8; x++) squares.push(new Square(x, y))
+      Square._all = squares
+    }
+    return Square._all
+  }
+  get notation() { return `${FILES[this.x - 1]}${this.y}` }
+  get domId() { return `square_${this.notation}` }
+  equals(other) { return other instanceof Square && this.x === other.x && this.y === other.y }
+}
 ```
 
-Overwrites the existing AR-backed `app/models/square.rb`. `Data.define` gives immutable value semantics (`==`/`hash`/readable `inspect`) for free — needed since later phases rely on `.include?`/`.uniq` over arrays of squares.
+Test cases (mirror `square_spec.rb`): notation round trip; `all()` order `a8..h8, ..., a1..h1` (64 total); out-of-bounds/malformed → throw; `.equals()` used for array membership since JS has no structural `.includes()`.
 
-**Verify**: `bundle exec rspec spec/models/square_spec.rb` green. (Rest of the suite breaks until later phases — expected.)
+**Verify**: `bin/jstest` green.
 
-### 2. `MoveFinder` adapted to `Square`
+### 2. JS `MoveFinder` port
 
-**Goal**: `MoveFinder#legal_moves` returns `Square` instances instead of raw `[x, y]` pairs.
+```js
+import { Square } from "./square.mjs"
+const MOVE_SET = [[1,2],[2,1],[2,-1],[1,-2],[-1,-2],[-2,-1],[-2,1],[-1,2]]
+export class MoveFinder {
+  constructor(square) { this.square = square }
+  legalMoves() {
+    return this.moveCandidates()
+      .filter(([x, y]) => x >= 1 && x <= 8 && y >= 1 && y <= 8)
+      .map(([x, y]) => new Square(x, y))
+  }
+  moveCandidates() { return MOVE_SET.map(([dx, dy]) => [this.square.x + dx, this.square.y + dy]) }
+}
+```
+Pin `game/move_finder`. Tests mirror `move_finder_spec.rb`: 8 deltas from center; corner (`a1`) filters to `{b3, c2}`.
 
-**TDD**: update `spec/services/move_finder_spec.rb` — construct `Square.new(x:, y:)`, assert `legal_moves` returns `Square` instances. Keep existing delta-math cases (8 knight-move deltas, off-board filtering) unchanged.
+**Verify**: `bin/jstest`.
 
-```ruby
-def legal_moves
-  move_candidates
-    .select { |x, y| (1..8).cover?(x) && (1..8).cover?(y) }
-    .map { |x, y| Square.new(x:, y:) }
-end
+### 3. JS `KnightTourGame` port
+
+Deliberate shape difference from Ruby: Ruby's version wraps a DB-backed `tour:`; the JS version *is* the tour — holds its own in-memory ordered `moves` array (nothing persisted until Save).
+
+```js
+import { Square } from "./square.mjs"
+import { MoveFinder } from "./move_finder.mjs"
+export class IllegalMoveError extends Error {}
+export class KnightTourGame {
+  constructor() { this.moves = [] }
+  get currentSquare() { return this.moves.length ? this.moves[this.moves.length - 1] : null }
+  get lastMove() { return this.currentSquare }
+  visited(square) { return this.moves.some(m => m.equals(square)) }
+  get legalMovesFrom() {
+    if (this.moves.length === 0) return Square.all()
+    return new MoveFinder(this.currentSquare).legalMoves().filter(sq => !this.visited(sq))
+  }
+  visit(square) {
+    if (!this.legalMovesFrom.some(sq => sq.equals(square))) throw new IllegalMoveError(`${square.notation} is not legal`)
+    this.moves.push(square)
+    return square
+  }
+  undo() { this.moves.pop() }
+  get visitedCount() { return this.moves.length }
+  get won() { return this.visitedCount === 64 }
+  get stuck() { return this.visitedCount > 0 && !this.won && this.legalMovesFrom.length === 0 }
+  notationPath() { return this.moves.map(sq => sq.notation) }
+}
+```
+Pin `game/knight_tour_game`. Tests mirror `knight_tour_game_spec.rb` 1:1, including fabricating state directly (`game.moves = Square.all()`) to test `won`/`stuck` the same way the Ruby spec bypasses `visit!` via factories, and the exact dead-end sequence `c2→d4→b3→a1` for `stuck`.
+
+**Verify**: `bin/jstest`.
+
+### 4. JS `boardView` — pure per-square render state
+
+Ports the derived-state math in `squares/_square.html.erb`. Note: in the current partial, the visible color priority (once you account for the `link_to_if legal` emerald overlay sitting on top of `bg_class`) is **`stuck > legal > current > visited > dark/light`** — collapses cleanly since a legal square can never simultaneously be current or visited.
+
+```js
+import { Square } from "./square.mjs"
+const BG = { stuck: "bg-zinc-700", legal: "bg-emerald-400", current: "bg-[#e0cf9c]", visited: "bg-red-400", dark: "bg-slate-500", light: "bg-slate-100" }
+export function squareView(game, square) {
+  const stuck = game.stuck
+  const current = !!game.currentSquare && square.equals(game.currentSquare)
+  const visited = game.visited(square)
+  const legal = !stuck && game.legalMovesFrom.some(sq => sq.equals(square))
+  const dark = (square.x + square.y) % 2 === 1
+  const bgClass = stuck ? BG.stuck : legal ? BG.legal : current ? BG.current : visited ? BG.visited : dark ? BG.dark : BG.light
+  return { square, stuck, current, visited, legal, dark, bgClass }
+}
+export function boardView(game) { return Square.all().map(sq => squareView(game, sq)) }
+```
+Pin `game/board_view`. Tests port the coloring assertions currently in `moves_spec.rb`/`tours_spec.rb`: stuck → all 64 `bg-zinc-700`; one legal move → `c2`/`b3` emerald, `h8` not; current square shows regardless of checkerboard parity.
+
+**Verify**: `bin/jstest`.
+
+### 5. `tours#new` skeleton route + view; retire `Tour.current`
+
+**Goal**: `GET /` becomes a pure, DB-free static page — the biggest behavioral break from today.
+
+Routes: `root "tours#new"`; `resources :tours, only: [ :create, :show ]`.
+
+Remove `Tour.current` from `app/models/tour.rb` (nothing else calls it once `#current` is gone); trim its spec.
+
+Controller gets a bare `def new; end`.
+
+View `app/views/tours/new.html.erb` (sketch, Tailwind classes carried over): a `data-controller="tour"` wrapper, `#board` of 64 divs with `data-tour-target="square"`, `data-square-notation`, `data-action="click->tour#move"`; `#visited_count` and `#tour_control` with Stimulus targets for status/undo/restart/save; a real `form_with url: tours_path, method: :post` for Save (not `fetch`, so CSRF/Turbo navigation come for free). Deliberately **no** `turbo_frame_tag` wrapper — there's no per-move round trip to scope anymore, and Save's redirect needs to be a real full-page navigation to `/tours/:id`.
+
+Spec (`GET /`): `not_to change(Tour, :count)`, skeleton markup present (64 `[data-square-notation]`, `[data-controller='tour']`, disabled save button).
+
+**Verify**: `bundle exec rspec spec/requests/tours_spec.rb` (this block only — rest red until later steps, expected); `bin/dev` — `/` loads an inert, correctly-checkerboarded board, no clicks wired yet.
+
+### 6. Stimulus `TourController` — client-side play
+
+**Goal**: full play (move/undo/restart/win/stuck) works entirely client-side, zero persistence.
+
+```js
+import { Controller } from "@hotwired/stimulus"
+import { Square } from "game/square"
+import { KnightTourGame, IllegalMoveError } from "game/knight_tour_game"
+import { boardView } from "game/board_view"
+
+export default class extends Controller {
+  static targets = ["square", "visitedCount", "status", "undoButton", "saveButton", "saveForm"]
+  connect() { this.game = new KnightTourGame(); this.render() }
+  move(event) {
+    try { this.game.visit(Square.fromNotation(event.currentTarget.dataset.squareNotation)) }
+    catch (e) { if (!(e instanceof IllegalMoveError)) throw e; return }
+    this.render()
+  }
+  undo() { this.game.undo(); this.render() }
+  restart() { this.game = new KnightTourGame(); this.render() }
+  render() { /* apply boardView(this.game) to squareTargets, visitedCount, status, undo/save button state */ }
+  save(event) { /* wired in step 8 */ }
+}
 ```
 
-`initialize(square:)` already duck-types on `.x`/`.y`, so it accepts the new `Square` unchanged.
+**Named exception to the TDD cadence**: no automated spec for this controller — it's DOM-wiring glue with nothing left to unit test beyond what steps 1-4 already cover. Verification is manual `bin/dev` click-through, same precedent as this repo's own prior Turbo Frame step. Say so explicitly rather than write a spec that doesn't test anything real.
 
-**Verify**: `bundle exec rspec spec/services/move_finder_spec.rb` green.
+**Verify**: `bin/dev` — legal (emerald) clicks move the knight instantly with zero network activity (check devtools Network tab); Undo/Restart work; dead end grays the whole board; 64/64 shows a win state.
 
-### 3. `Tour`/`Move` schema + migrations
+### 7. `POST /tours` — Save Tour endpoint, server-side replay validation
 
-**Goal**: new tables in, old `squares` table dropped. Schema only, no model behavior yet.
-
-New migrations (never edit the already-deployed `create_squares` migration):
+**Goal**: the only DB write in the whole flow — never trusts the client.
 
 ```ruby
-# drop_squares.rb
-def up = drop_table :squares
-def down  # recreate the current squares table, for reversibility
-
-# create_tours.rb
-create_table :tours do |t|
-  t.timestamps
-end
-
-# create_moves.rb
-create_table :moves do |t|
-  t.references :tour, null: false, foreign_key: true
-  t.string  :square, null: false
-  t.integer :position, null: false
-  t.timestamps
-end
-add_index :moves, [ :tour_id, :position ], unique: true
-add_index :moves, [ :tour_id, :square ], unique: true
-```
-
-`square` stores algebraic notation (`"e4"`) directly — enables `GROUP BY square` for future "most visited squares" queries; `Move` never needs numeric coordinate math itself (that happens off the *current* position via `Square`/`MoveFinder` at request time).
-
-Empty out `db/seeds.rb` — it currently seeds 64 `Square` rows and will raise once the `squares` table is gone; tours/moves are created lazily instead.
-
-**Verify**: `bin/rails db:migrate`; `db/schema.rb` shows `squares` gone, `tours`/`moves` present; `bin/rails db:rollback STEP=3` + re-migrate to check `drop_squares`'s reversibility.
-
-### 4. `Tour`/`Move` models
-
-**Goal**: AR models with the validations/associations the rest of the app needs.
-
-**TDD**: `spec/models/tour_spec.rb` (`Tour.current` returns latest or creates one; a new `Tour` leaves a prior tour's `Move`s intact) and `spec/models/move_spec.rb` (`square` format validation; `position`/`square` uniqueness scoped to `tour_id`) first. Update `spec/factories.rb`: drop `:square`, add `:tour` and `:move` factories.
-
-```ruby
-# app/models/tour.rb
-class Tour < ApplicationRecord
-  has_many :moves, -> { order(:position) }, dependent: :destroy, inverse_of: :tour
-
-  def self.current
-    order(id: :desc).first || create!
-  end
-end
-
-# app/models/move.rb
-class Move < ApplicationRecord
-  belongs_to :tour
-
-  validates :square, presence: true, format: { with: /\A[a-h][1-8]\z/ }
-  validates :square, uniqueness: { scope: :tour_id }
-  validates :position, presence: true, numericality: { only_integer: true, greater_than: 0 },
-                        uniqueness: { scope: :tour_id }
-
-  def to_square = Square.from_notation(square)
-end
-```
-
-No `finished_at`/`outcome` column on `Tour` this pass — `won?`/`stuck?` stay derived live from `moves`.
-
-**Verify**: `bundle exec rspec spec/models/` green.
-
-### 5. `KnightTourGame` rewritten
-
-**Goal**: game-logic service object operates over a `Tour`'s `Move`s instead of the `Square` table.
-
-**TDD**: rewrite `spec/services/knight_tour_game_spec.rb` first: first move on an empty tour accepts any square; illegal square raises `IllegalMoveError` and creates no `Move`; `legal_moves_from` excludes visited squares; `won?`/`visited_count` via 64 fabricated `Move` rows; `stuck?` via a position where every knight-move destination is visited; `undo!` removes the last move and reverts `current_square`, no-ops on an empty tour.
-
-```ruby
-class KnightTourGame
-  class IllegalMoveError < StandardError; end
-
-  attr_reader :tour
-
-  def initialize(tour:) = @tour = tour
-
-  def current_square
-    last = tour.moves.order(:position).last
-    last && Square.from_notation(last.square)
-  end
-
-  def visited?(square) = tour.moves.exists?(square: square.notation)
-
-  def legal_moves_from
-    return Square.all if tour.moves.none?
-    MoveFinder.new(square: current_square).legal_moves.reject { |sq| visited?(sq) }
-  end
-
-  def visit!(square)
-    raise IllegalMoveError, "#{square.notation} is not legal" unless legal_moves_from.include?(square)
-    tour.moves.create!(square: square.notation, position: next_position)
-  end
-
-  def undo! = tour.moves.order(:position).last&.destroy
-
-  def visited_count = tour.moves.count
-  def won?           = visited_count == 64
-  def stuck?         = visited_count.positive? && !won? && legal_moves_from.empty?
-
-  private
-
-  def next_position = (tour.moves.maximum(:position) || 0) + 1
-end
-```
-
-`visit!` enforces legality server-side (new behavior vs. the old app, which only relied on the UI never rendering illegal links) — worth keeping now that moves are a real mutating endpoint.
-
-**Verify**: `bundle exec rspec spec/services/` green.
-
-### 6. Routes + controllers (plain HTML first, no Turbo Streams yet)
-
-**Goal**: a working, clickable (still full-page-reload) version of the game on the new models, verifying the request/response plumbing before layering Turbo Streams on top in step 7.
-
-**TDD**: `spec/requests/tours_spec.rb` (`GET /` redirects to `/tours/:id`, lazily creating one; `POST /tours` creates a new tour and redirects, leaving the previous tour's moves queryable) and `spec/requests/moves_spec.rb` (legal `POST` creates a `Move` and redirects; illegal square → 422, no `Move`; `DELETE` destroys the move and redirects) first, asserting plain HTML-redirect behavior only.
-
-```ruby
-# config/routes.rb
-root "tours#current"
-
-resources :tours, only: [ :show, :create ] do
-  resources :moves, only: [ :create, :destroy ]
-end
-```
-
-Plural with real ids (not a singular `resource :tour`) specifically because tours are expected to eventually belong to a user — this URL shape won't need to change when that lands, only how `Tour.current` resolves.
-
-```ruby
-# app/controllers/tours_controller.rb
 class ToursController < ApplicationController
-  def current
-    redirect_to tour_path(Tour.current)
-  end
-
-  def show
-    @tour = Tour.find(params[:id])
-    @game = KnightTourGame.new(tour: @tour)
-  end
+  def new; end
 
   def create
-    @tour = Tour.create!   # old tour's moves untouched — history preserved
-    redirect_to tour_path(@tour)
-  end
-end
+    squares = Array(params[:squares]).map { |n| Square.from_notation(n) }
+    raise ArgumentError, "no moves to save" if squares.empty?
 
-# app/controllers/moves_controller.rb
-class MovesController < ApplicationController
-  before_action :set_game
+    tour = nil
+    ActiveRecord::Base.transaction do
+      tour = Tour.create!
+      game = KnightTourGame.new(tour: tour)
+      squares.each { |square| game.visit!(square) }
+    end
 
-  def create
-    @game.visit!(Square.from_notation(params[:square]))
-    redirect_to tour_path(@tour)
+    redirect_to tour_path(tour), notice: "Tour saved!"
   rescue ArgumentError, KnightTourGame::IllegalMoveError
-    head :unprocessable_entity
-  end
-
-  def destroy
-    @game.undo!
-    redirect_to tour_path(@tour)
-  end
-
-  private
-
-  def set_game
-    @tour = Tour.find(params[:tour_id])
-    @game = KnightTourGame.new(tour: @tour)
+    redirect_to root_path, alert: "Could not save — invalid move sequence."
   end
 end
 ```
+A raised exception inside `transaction { }` rolls back and re-raises, so the method-level `rescue` catches it cleanly post-rollback. Add a minimal flash partial to `app/views/layouts/application.html.erb` (none exists yet).
 
-Views: a minimal `app/views/tours/show.html.erb` reusing the existing Tailwind grid markup style, iterating `Square.all` and reading state off `@game`. OK to be visually rough — step 7 restructures partials anyway.
+Specs: legal partial sequence saves + redirects to `tour_path`; illegal sequence (e.g. `a1 → h8`) persists nothing, redirects to `/`; malformed notation persists nothing; empty list rejected; a full 64-move legal sequence saves and wins. The 64-move fixture must be a genuine legal open tour — sanity-check it once in the spec by replaying through the real Ruby engine before trusting it as a constant.
 
-**Verify**: `bundle exec rspec spec/requests/` green; `bin/dev` manual click-through — moves/undo/restart work, full reload per click expected/fine at this stage.
+**Verify**: `bundle exec rspec spec/requests/tours_spec.rb`.
 
-### 7a. Real board partials, still full-reload
+### 8. Wire the Save button to the real endpoint
 
-**Goal**: replace the `tours/show.html.erb` placeholder with the real board, still via ordinary full-page navigation — get the partials and their markup/DOM ids right before layering Turbo Streams on top in 7b/7c.
+`TourController#save` injects hidden `squares[]` inputs from `this.game.notationPath()` into the already-rendered form, then lets it submit as an ordinary Rails form POST (Turbo intercepts, follows the redirect as a full navigation since it's outside any frame, disables the button for the duration automatically).
 
-**TDD**: extend `spec/requests/tours_spec.rb`'s `GET /tours/:id` case to assert real markup is present — 64 rendered squares, a visited-count element, a control (Restart) link — instead of just `be_successful`.
+**Verify**: `bundle exec rspec spec/requests/tours_spec.rb` (still green, no server change); `bin/dev` — play a partial or full tour, Save, land on `/tours/:id` showing exactly the played path.
 
-Partials with stable DOM ids (originally so 7b/7c could target them with Turbo Stream replaces; 7b's design changed mid-branch to a single Turbo Frame instead, see below, but the ids are harmless to keep and still useful hooks):
-- `tours/_board` — `<div id="board">`, iterates `Square.all`, renders `squares/_square` for each.
-- `squares/_square` — `<div id="<%= square.dom_id %>">`, checkerboard via `(square.x + square.y).odd?`, current/visited/legal states styled off `@game`, `link_to "", tour_moves_path(game.tour, square: square.notation), data: { turbo_method: "post", turbo_prefetch: false }` for legal squares.
-- `tours/_visited_count` — `<div id="visited_count">`.
-- `tours/_control` — Undo + Restart/Congrats, `<div id="tour_control">`.
+### 9. `#show` simplified to a read-only saved-tour view
 
-`tours/show.html.erb` becomes a thin wrapper rendering these four partials with `game: @game`.
+`MovesController` is going away next step, so `_square.html.erb`'s legal-move link must go regardless — also drop `legal`/`stuck` from the saved view entirely (not meaningful for a static historical record; a saved tour can be incomplete per the save-anytime decision).
 
-**Verify**: `bundle exec rspec spec/requests/` green. `bin/dev` manual click-through — moves/undo/restart work and render correctly, full reload per click still expected/fine at this stage.
+`ToursController#show` unchanged in shape. `squares/_square.html.erb` (used only here now) drops to just `current`/`visited`/`dark` coloring, no link. `tours/_control.html.erb` (for show) drops Undo/Restart, shows an outcome line + "New Tour" link back to `/`. `tours/show.html.erb` drops the `turbo_frame_tag` wrapper — nothing swaps into it anymore, it's a plain static page.
 
-### 7b. Turbo Frame for the whole tour UI (moves, undo, restart)
+Spec: keep board/visited-count/control presence checks; replace "highlights legal squares" (route gone) with "renders no clickable move links" + visited/current coloring off fabricated `Move`s.
 
-**Goal**: moves, undo, and restart all stop doing full-page navigation, and the currently-active tour's id stays out of the URL bar — `/` always shows whichever `Tour` is current, before or after any of these actions.
+**Verify**: `bundle exec rspec spec/requests/tours_spec.rb`; `bin/dev` full loop: play → Save → land on `/tours/:id`, confirm static + correctly colored.
 
-**Design pivot from the original 7b/7c plan** (below, kept for history): the first pass at this used Turbo Streams with manually-computed before/after square diffs (`@squares_to_refresh`) and shipped/passed its own tests (commit `da077c2` for moves, plus a follow-up commit for restart). Manual `bin/dev` testing then surfaced two problems:
-- The diffing bookkeeping was real, load-bearing complexity: four pieces of transient state per action (previous current square, previous legal squares, new current square, new legal squares) just to know which of the 64 squares actually changed.
-- Turbo Streams never touch the browser URL — only a Drive visit does. `ToursController#create` redirected to `tour_path(@tour)` for non-stream requests, and after switching restart to a Stream response, the address bar kept showing the *old* tour's URL post-restart. Not cosmetic: refreshing, bookmarking, or sharing that URL after a restart would land back on stale state.
+### 10. Cleanup
 
-Both problems are solved at once by dropping Streams for a single Turbo Frame around the whole tour UI, with `root` rendering inline instead of redirecting to a per-tour URL:
-- `ToursController#current` (the `root` action) renders `tours/show` directly against `Tour.current` instead of `redirect_to tour_path(...)`. The address bar is just `/`, always, regardless of which `Tour` id is actually current.
-- `tours/show.html.erb` wraps the existing board/visited_count/control partials (unchanged from 7a) in `<%= turbo_frame_tag "tour" do %> ... <% end %>`.
-- `MovesController#create`/`#destroy` and `ToursController#create` go back to a plain `redirect_to root_path` — no `respond_to`, no `*.turbo_stream.erb` views, no `@squares_to_refresh`. Since the triggering links/forms live inside the frame, Turbo automatically scopes their navigation to it: it follows the redirect, finds the matching `<turbo-frame id="tour">` in the response, and swaps only that content in — the surrounding page and URL never change. One plain HTML render now serves both a real full-page load of `/` and every in-page update.
-- `/tours/:id` (`show`) stays as a real route for a specific tour, unchanged — still useful for later tour-history features. Only the *current* tour's default experience at `/` stops exposing an id.
+- Delete `app/controllers/moves_controller.rb`, `spec/requests/moves_spec.rb`.
+- Grep and remove dangling references: `tour_moves_path`, `tour_move_path`, `Tour.current`, leftover `turbo_frame_tag "tour"`.
+- Keep the `:move` FactoryBot factory — still used by `knight_tour_game_spec.rb` and `#show` specs to fabricate persisted state.
+- Fold this plan down into "complete, kept for history" in `docs/PLAN.md`, per this repo's own living-plan convention.
+- Note, not required for this feature: CI (`.github/workflows/ci.yml`) doesn't run `bundle exec rspec` at all today — a pre-existing gap. If picked up later, wiring `bin/jstest` in alongside a first-time `rspec` CI step is natural but separate work.
 
-Trade-off accepted knowingly: every move now re-renders the whole frame (all 64 squares) server-side instead of just the changed ones — the same shape of cost 7a already had before Streams. Given the N+1 fix earlier in this branch already brought full-board render time down to ~10-20ms, this is imperceptible at this app's scale, and wasn't judged worth the diffing complexity it'd take to avoid.
+**Verify**: `bundle exec rspec` full suite green; `bin/jstest` green; `bin/rubocop`/`bin/brakeman` clean.
 
-**TDD**: rewrite `spec/requests/tours_spec.rb`'s `GET /` case to expect `be_successful` + real board markup instead of `redirect_to`; `POST /tours` and the moves specs to expect `redirect_to(root_path)` instead of `tour_path`/Turbo Stream assertions.
+### 11. (Optional/stretch) One real-browser system spec
 
-**Verify**: `bundle exec rspec spec/requests/` green. Manual browser check via `bin/dev`: devtools Network tab shows only a frame-scoped fetch per move/undo/restart (no full navigation); address bar stays on `/` throughout; stuck/win states still render correctly.
+Everything above is covered by JS unit tests + request specs (server replay validation) + manual `bin/dev` verification, not an automated browser test — there's currently zero Capybara/Selenium/Cuprite in the Gemfile, and adding one is a real new dependency (needs a Chrome binary locally/in CI) for a codebase whose CI doesn't even run `rspec` yet. If deeper integration coverage (Stimulus wiring, real clicks, CSRF, the Turbo full-navigation redirect) is wanted later: add `capybara` + `cuprite` (CDP-direct, no Selenium driver-manager layer) to `group :test`, register a `:cuprite` system-spec driver, one spec exercising the full click-through-Save-to-`/tours/:id` path. Flagged optional because it's the one part of this plan adding new infrastructure rather than working within what's already here — not because it lacks value.
 
-#### 7b/7c, superseded (Turbo Streams with per-square diffing) — kept for history
+## Verification (end to end, once all steps land)
 
-`MovesController` gained `respond_to { |f| f.turbo_stream; f.html { redirect_to ... } }`, computing `@squares_to_refresh` (previous current square, new current square, previous/new legal-move squares) before/after `visit!`/`undo!`, with `moves/create.turbo_stream.erb`/`moves/destroy.turbo_stream.erb` doing per-square `turbo_stream.replace` calls — falling back to a whole-`#board` replace on stuck-entry/exit, since the `_square` partial grays out *every* square when stuck, not just the current one. `ToursController#create` got the same `respond_to` pattern, with `tours/create.turbo_stream.erb` unconditionally replacing `board`/`visited_count`/`tour_control`. Tests used `Turbo::TestAssertions::IntegrationTestAssertions` (wired into `rails_helper.rb` for RSpec request specs, since rspec-rails doesn't fire the load hook turbo-rails normally relies on for it) for `assert_turbo_stream`/`assert_no_turbo_stream`. This all worked and was fully tested, but was superseded by the Turbo Frame approach above once the URL-staleness bug and the diffing complexity prompted a design conversation.
+`bundle exec rspec` full suite green; `bin/jstest` green; `docker build` succeeds; full manual playthrough via `bin/dev` — play fully client-side with no network activity per move, Save Tour persists and redirects to a real per-tour URL, `/tours/:id` renders that saved tour read-only.
 
-### 8. Cleanup
+---
 
-**Goal**: remove everything the rewrite made dead, and log what happened.
+# Rewrite game logic: Square model → Tour/Move model, Turbo Streams (complete, kept for history)
 
-- Delete `app/views/squares/index.html.erb`, `app/controllers/squares_controller.rb`, `spec/requests/squares_spec.rb` (superseded by `tours_spec.rb`/`moves_spec.rb`).
-- Remove `rails-controller-testing` from the `test` group in the Gemfile — no longer needed once no specs use `assigns[:...]`.
-- Grep for lingering references to the old AR `Square` semantics (`has_knight`, `has_been_visited`, `SquaresController`, `squares_path`).
+## Context
 
-**Verify**: `bundle exec rspec` full suite green. `docker build` succeeds. Full manual playthrough via `bin/dev`.
+The app was previously ported and deployed with the board persisted as a single global 64-row `Square` table — every move did a board-wide `Square.update_all` plus a row update, and moves were full-page GET navigations. This branch (`new-game-logic`) replaced that: `Square` became a plain value object (no DB row), `Tour` became a first-class model representing one played-through attempt (restart creates a **new** `Tour`, old tours kept on purpose for future tour-history features), and `Move` became a first-class model (`belongs_to :tour`) rather than a value crammed into an array column. Per-user/session scoping was explicitly out of scope, but the route shape (`resources :tours` with real ids) was chosen up front to avoid a breaking URL change once accounts land.
+
+## What happened
+
+1. `Square` became a `Data.define` value object, replacing the AR-backed model.
+2. `MoveFinder` adapted to return `Square` instances instead of raw `[x, y]` pairs.
+3. New `tours`/`moves` tables via migration (`square` stored as algebraic notation, unique indexes on `(tour_id, position)` and `(tour_id, square)`); `squares` table dropped.
+4. `Tour`/`Move` AR models added (`Tour.current`, `Move` validations scoped to `tour_id`).
+5. `KnightTourGame` rewritten to operate over a `Tour`'s `Move`s instead of the `Square` table, enforcing move legality server-side (new behavior vs. the old app, which only relied on the UI never rendering illegal links).
+6. Routes/controllers wired up plain-HTML first (full reload per click) to verify the request/response plumbing before layering Turbo on top.
+7a. Real board partials (stable DOM ids) replaced the placeholder view, still full-reload.
+7b. Turbo Streams with manual per-square diffing were tried first (commit `da077c2`), shipped and fully tested — then dropped mid-branch for a single Turbo Frame wrapping the whole tour UI, after manual `bin/dev` testing found the diffing bookkeeping (four pieces of transient state per action) was real complexity, and that Streams never updating the browser URL caused a staleness bug on restart (refresh/bookmark/share after restart would land on stale state). The Frame approach re-renders the whole board per move (~10-20ms after an earlier N+1 fix, imperceptible) instead of diffing — judged the right trade at this app's scale.
+8. Cleanup: deleted the old `Square`/`SquaresController`/views/specs and the now-unused `rails-controller-testing` gem.
+
+**Result**: moves/undo/restart all happened via a single Turbo Frame with no full-page navigation and no stale URLs. Deployed live via Kamal on Hetzner. This is the version superseded by the client-side rewrite above, once manual testing on the live deploy showed per-move network round trips (~250-400ms, dominated by RTT) still didn't feel snappy even with the frame in place.
 
 ---
 
