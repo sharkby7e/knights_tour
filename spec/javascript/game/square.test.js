@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { Square } from "./square.mjs"
+import { Square } from "#game/square"
 
 test("fromNotation parses algebraic notation, notation round-trips", () => {
   const square = Square.fromNotation("e4")

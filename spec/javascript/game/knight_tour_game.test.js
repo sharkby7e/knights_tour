@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { Square } from "./square.mjs"
-import { KnightTourGame, IllegalMoveError } from "./knight_tour_game.mjs"
+import { Square } from "#game/square"
+import { KnightTourGame, IllegalMoveError } from "#game/knight_tour_game"
 
 test("first move can be any square; visit records it and advances currentSquare", () => {
   const game = new KnightTourGame()

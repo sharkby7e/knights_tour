@@ -1,0 +1,50 @@
+import { test } from "node:test"
+import assert from "node:assert/strict"
+import { Square } from "#game/square"
+import { KnightTourGame } from "#game/knight_tour_game"
+import { attemptMove, renderState } from "#game/tour_presenter"
+
+test("attemptMove records a legal move and returns true", () => {
+  const game = new KnightTourGame()
+  assert.ok(attemptMove(game, "a1"))
+  assert.equal(game.visitedCount, 1)
+})
+
+test("attemptMove leaves the game untouched and returns false for an illegal move", () => {
+  const game = new KnightTourGame()
+  attemptMove(game, "a1")
+  assert.ok(!attemptMove(game, "h8"))
+  assert.equal(game.visitedCount, 1)
+})
+
+test("renderState disables undo/save with no moves and reports 64 squares", () => {
+  const game = new KnightTourGame()
+  const state = renderState(game)
+  assert.equal(state.squares.length, 64)
+  assert.ok(state.undoDisabled)
+  assert.ok(state.saveDisabled)
+  assert.equal(state.status, "")
+})
+
+test("renderState enables undo/save once a move has been made", () => {
+  const game = new KnightTourGame()
+  attemptMove(game, "a1")
+  const state = renderState(game)
+  assert.ok(!state.undoDisabled)
+  assert.ok(!state.saveDisabled)
+})
+
+test("renderState reports won status once all 64 squares are visited", () => {
+  const game = new KnightTourGame()
+  game.moves = Square.all()
+  const state = renderState(game)
+  assert.match(state.status, /won/i)
+})
+
+test("renderState reports stuck status at a real dead end", () => {
+  const game = new KnightTourGame()
+  ;[ "c2", "d4", "b3", "a1" ].forEach(n => attemptMove(game, n))
+  const state = renderState(game)
+  assert.match(state.status, /stuck/i)
+  assert.ok(!state.undoDisabled)
+})

@@ -1,2 +1,2 @@
 #!/usr/bin/env sh
-exec node --test app/javascript/game
+exec node --test spec/javascript

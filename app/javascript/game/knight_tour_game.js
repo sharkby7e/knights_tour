@@ -1,5 +1,5 @@
-import { Square } from "./square.mjs"
-import { MoveFinder } from "./move_finder.mjs"
+import { Square } from "#game/square"
+import { MoveFinder } from "#game/move_finder"
 
 export class IllegalMoveError extends Error {}
 

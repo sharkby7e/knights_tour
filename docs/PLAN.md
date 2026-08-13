@@ -5,7 +5,7 @@
 - [x] 3. JS `KnightTourGame` port
 - [x] 4. JS `boardView` pure render-state helper
 - [x] 5. `tours#new` skeleton route + view; retire `Tour.current`/`#current`
-- [ ] 6. Stimulus `TourController`: client-side play, no persistence yet
+- [x] 6. Stimulus `TourController`: client-side play, no persistence yet
 - [ ] 7. `POST /tours` Save Tour endpoint: server-side replay validation
 - [ ] 8. Wire the Save button to the real endpoint
 - [ ] 9. `#show` simplified to a read-only saved-tour view
@@ -181,30 +181,22 @@ Spec (`GET /`): `not_to change(Tour, :count)`, skeleton markup present (64 `[dat
 
 **Goal**: full play (move/undo/restart/win/stuck) works entirely client-side, zero persistence.
 
-```js
-import { Controller } from "@hotwired/stimulus"
-import { Square } from "game/square"
-import { KnightTourGame, IllegalMoveError } from "game/knight_tour_game"
-import { boardView } from "game/board_view"
+Split into a thin Stimulus controller (`app/javascript/controllers/tour_controller.js`, DOM-wiring glue only — targets, `connect`/`move`/`undo`/`restart`/`save`/`render`) plus a pure, unit-tested presenter module (`app/javascript/game/tour_presenter.js`, exporting `attemptMove(game, notation)` and `renderState(game)`), so the actual game-state-to-render-state logic stays spec-covered even though the controller itself has no spec (DOM-wiring glue, nothing left to unit test beyond what `tour_presenter.test.js` and steps 1-4 already cover — same precedent as this repo's prior Turbo Frame step).
 
-export default class extends Controller {
-  static targets = ["square", "visitedCount", "status", "undoButton", "saveButton", "saveForm"]
-  connect() { this.game = new KnightTourGame(); this.render() }
-  move(event) {
-    try { this.game.visit(Square.fromNotation(event.currentTarget.dataset.squareNotation)) }
-    catch (e) { if (!(e instanceof IllegalMoveError)) throw e; return }
-    this.render()
-  }
-  undo() { this.game.undo(); this.render() }
-  restart() { this.game = new KnightTourGame(); this.render() }
-  render() { /* apply boardView(this.game) to squareTargets, visitedCount, status, undo/save button state */ }
-  save(event) { /* wired in step 8 */ }
-}
-```
+**Named exception to the TDD cadence**: verification of the controller itself is manual `bin/dev` click-through, not an automated spec.
 
-**Named exception to the TDD cadence**: no automated spec for this controller — it's DOM-wiring glue with nothing left to unit test beyond what steps 1-4 already cover. Verification is manual `bin/dev` click-through, same precedent as this repo's own prior Turbo Frame step. Say so explicitly rather than write a spec that doesn't test anything real.
+**Done — real bugs surfaced by actually loading this in a browser** (steps 1-4's `.mjs` port was only ever exercised via `node:test` before now, never served to a browser):
 
-**Verify**: `bin/dev` — legal (emerald) clicks move the knight instantly with zero network activity (check devtools Network tab); Undo/Restart work; dead end grays the whole board; 64/64 shows a win state.
+1. **MIME type**: Propshaft resolves an asset's `Content-Type` via Rails' `Mime::Type` registry, which knows `.js` but not `.mjs` — `.mjs` assets served with an empty `Content-Type`, which browsers refuse to load as a module.
+2. **Fingerprinted relative imports**: every game file except `square.mjs` imported its siblings via relative paths (`./square.mjs`). That's fine for `node:test`, but broken once served through Propshaft — the browser resolves `./square.mjs` relative to the *digested* URL (e.g. `/assets/game/knight_tour_game-<hash>.mjs`), landing on an undigested URL Propshaft never serves (404).
+
+Rather than patch around these, the fix was structural, and doubles as the answer to "does this pattern scale to more controllers/modules":
+
+- Renamed all `app/javascript/game/*.mjs` → `*.js` (sidesteps the MIME gap entirely — no initializer needed) and relocated their tests to `spec/javascript/game/*.test.js` (out of the pinned directory, so tests never get swept into the browser bundle).
+- Cross-module imports switched to `#game/*` bare specifiers, resolved identically in both runtimes with **zero per-file bookkeeping**: `package.json`'s `imports` field (`"#game/*": "./app/javascript/game/*.js"`, a Node built-in, no dependency) for `node --test`, and `config/importmap.rb`'s `pin_all_from "app/javascript/game", under: "#game", to: "game"` for the browser. New shared game modules just need to exist on disk — no `importmap.rb`/`package.json` edit, mirroring how `pin_all_from "app/javascript/controllers", under: "controllers"` already auto-registers new Stimulus controllers. (The `to: "game"` matters — without it `pin_all_from` computes the served asset path from `under` too, tries to resolve assets at a nonexistent `#game/...` path, and silently drops every entry.)
+- `bin/jstest` now runs `node --test spec/javascript` (was `app/javascript/game`).
+
+**Verify**: `bin/jstest` and `bundle exec rspec` green; `bin/dev` — legal (emerald) clicks move the knight instantly with zero network activity (checked devtools Network tab); Undo/Restart work; dead end grays the whole board; 64/64 shows a win state; confirmed via hand-test, no console errors.
 
 ### 7. `POST /tours` — Save Tour endpoint, server-side replay validation
 

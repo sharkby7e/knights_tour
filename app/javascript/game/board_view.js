@@ -1,4 +1,4 @@
-import { Square } from "./square.mjs"
+import { Square } from "#game/square"
 
 const BG = {
   stuck: "bg-zinc-700",

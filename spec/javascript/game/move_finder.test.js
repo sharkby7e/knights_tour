@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { Square } from "./square.mjs"
-import { MoveFinder } from "./move_finder.mjs"
+import { Square } from "#game/square"
+import { MoveFinder } from "#game/move_finder"
 
 test("legalMoves finds all 8 L-shaped moves from a central square", () => {
   const moves = new MoveFinder(new Square(4, 4)).legalMoves()

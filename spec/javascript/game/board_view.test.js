@@ -1,8 +1,8 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { Square } from "./square.mjs"
-import { KnightTourGame } from "./knight_tour_game.mjs"
-import { boardView, squareView } from "./board_view.mjs"
+import { Square } from "#game/square"
+import { KnightTourGame } from "#game/knight_tour_game"
+import { boardView, squareView } from "#game/board_view"
 
 test("boardView returns all 64 squares", () => {
   const game = new KnightTourGame()

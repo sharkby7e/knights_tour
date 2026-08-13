@@ -1,4 +1,4 @@
-import { Square } from "./square.mjs"
+import { Square } from "#game/square"
 
 const MOVE_SET = [ [ 1, 2 ], [ 2, 1 ], [ 2, -1 ], [ 1, -2 ], [ -1, -2 ], [ -2, -1 ], [ -2, 1 ], [ -1, 2 ] ]
 
