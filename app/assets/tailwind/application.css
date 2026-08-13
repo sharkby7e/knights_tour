@@ -20,12 +20,12 @@
   /* Board palette — single source of truth for board_view.js and new.html.erb,
      which each independently render dark/light squares (JS re-render vs. the
      server-rendered initial paint) and must stay in sync. */
-  --color-board-light: #ebecd0;
-  --color-board-dark: #7c8fb0;
-  --color-board-current: #f5cf6b;
-  --color-board-legal: #7fc8a9;
-  --color-board-visited: #d98a8a;
-  --color-board-stuck: #46423f;
+  --color-board-light: #d9d6bd;
+  --color-board-dark: #5f7290;
+  --color-board-current: #b8985f;
+  --color-board-legal: #6bab8c;
+  --color-board-visited: #bf7575;
+  --color-board-stuck: #3a3633;
 
   --color-accent: #81b64c;
   --color-accent-hover: #6ea23e;
