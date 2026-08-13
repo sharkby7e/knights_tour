@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+@theme {
+  /* Board palette — single source of truth for board_view.js and new.html.erb,
+     which each independently render dark/light squares (JS re-render vs. the
+     server-rendered initial paint) and must stay in sync. */
+  --color-board-light: #f1f5f9;
+  --color-board-dark: #64748b;
+  --color-board-current: #e0cf9c;
+  --color-board-legal: #34d399;
+  --color-board-visited: #f87171;
+  --color-board-stuck: #3f3f46;
+}

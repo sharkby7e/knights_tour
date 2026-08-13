@@ -1,6 +1,6 @@
 # Progress
 
-- [ ] 1. Design tokens: board palette as Tailwind v4 `@theme` custom properties
+- [x] 1. Design tokens: board palette as Tailwind v4 `@theme` custom properties
 - [ ] 2. Apply the new palette to board squares + state colors (legal/current/visited/stuck)
 - [ ] 3. Motion: transition square state changes, knight-landing animation, legal-square hover
 - [ ] 4. Style Undo/Restart buttons and status/visited-count text to match

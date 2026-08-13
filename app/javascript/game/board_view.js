@@ -1,12 +1,12 @@
 import { Square } from "#game/square"
 
 const BG = {
-  stuck: "bg-zinc-700",
-  legal: "bg-emerald-400",
-  current: "bg-[#e0cf9c]",
-  visited: "bg-red-400",
-  dark: "bg-slate-500",
-  light: "bg-slate-100"
+  stuck: "bg-board-stuck",
+  legal: "bg-board-legal",
+  current: "bg-board-current",
+  visited: "bg-board-visited",
+  dark: "bg-board-dark",
+  light: "bg-board-light"
 }
 
 export function squareView(game, square) {
