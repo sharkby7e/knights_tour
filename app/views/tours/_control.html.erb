@@ -1,8 +1,0 @@
-<div id="tour_control" class="flex flex-col space-y-4 text-3xl text-zinc-300 text-center">
-  <% if game.last_move %>
-    <%= link_to "Undo", tour_move_path(game.tour, game.last_move),
-          data: { turbo_method: :delete, turbo_prefetch: false } %>
-  <% end %>
-  <%= link_to(game.won? ? "Congrats!" : "Restart", tours_path,
-        data: { turbo_method: :post, turbo_prefetch: false }) %>
-</div>

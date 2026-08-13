@@ -12,7 +12,5 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   root "tours#new"
 
-  resources :tours, only: [ :create, :show ] do
-    resources :moves, only: [ :create, :destroy ]
-  end
+  resources :tours, only: [ :create, :show ]
 end
