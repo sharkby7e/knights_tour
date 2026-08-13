@@ -29,7 +29,9 @@ export default class extends Controller {
 
     state.squares.forEach((view, i) => {
       const el = this.squareTargets[i]
-      el.className = `w-10 h-10 sm:w-24 sm:h-24 flex items-center justify-center text-3xl sm:text-5xl border border-gray-400 ${view.bgClass}`
+      const interactive = view.legal ? "cursor-pointer hover:brightness-110 hover:scale-105" : ""
+      const landing = view.current ? "animate-pop" : ""
+      el.className = `w-10 h-10 sm:w-24 sm:h-24 flex items-center justify-center text-3xl sm:text-5xl border border-gray-400 transition-colors duration-200 ease-out ${view.bgClass} ${interactive} ${landing}`
       el.textContent = view.current ? "♞" : ""
     })
 
