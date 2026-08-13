@@ -19,6 +19,14 @@ test("legal squares from the current position are highlighted, others aren't", (
   assert.notEqual(h8.bgClass, "bg-board-legal")
 })
 
+test("before the first move, no square is highlighted legal - the board looks like a plain checkerboard even though any square is clickable", () => {
+  const game = new KnightTourGame()
+
+  const views = boardView(game)
+  assert.ok(views.every(v => !v.legal))
+  assert.ok(views.every(v => v.bgClass === "bg-board-dark" || v.bgClass === "bg-board-light"))
+})
+
 test("a stuck game colors every square bg-board-stuck, overriding legal/current/visited", () => {
   const game = new KnightTourGame()
   ;[ "c2", "d4", "b3", "a1" ].forEach(n => game.visit(Square.fromNotation(n)))

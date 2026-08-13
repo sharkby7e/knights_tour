@@ -17,12 +17,12 @@ test("attemptMove leaves the game untouched and returns false for an illegal mov
   assert.equal(game.visitedCount, 1)
 })
 
-test("renderState disables undo with no moves and reports 64 squares", () => {
+test("renderState disables undo with no moves, reports 64 squares, and prompts for a starting square", () => {
   const game = new KnightTourGame()
   const state = renderState(game)
   assert.equal(state.squares.length, 64)
   assert.ok(state.undoDisabled)
-  assert.equal(state.status, "")
+  assert.match(state.status, /starting square/i)
 })
 
 test("renderState enables undo once a move has been made", () => {
