@@ -13,9 +13,11 @@ servers:
   #     - 62.238.111.24
   #   cmd: bin/jobs
 
-# No domain yet — access via raw server IP. Do not set `ssl:` at all (rather
-# than `ssl: false`) — a boolean `false` here is a known Kamal bug.
+# Domain live via kamal-proxy, which auto-provisions/renews a Let's Encrypt
+# cert once DNS for `host` resolves to this server.
 proxy:
+  ssl: true
+  host: sidquinsaat.com
   app_port: 3000
 
 # Where you keep your container images.
