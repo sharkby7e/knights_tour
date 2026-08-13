@@ -5,7 +5,7 @@
       <% Square.all.each do |square| %>
         <% dark = (square.x + square.y).odd? %>
         <div id="<%= square.dom_id %>"
-             class="w-10 h-10 sm:w-24 sm:h-24 flex items-center justify-center transition-colors duration-200 ease-out <%= dark ? "bg-board-dark" : "bg-board-light" %>"
+             class="w-10 h-10 sm:w-24 sm:h-24 flex items-center justify-center border border-gray-400 transition-colors duration-200 ease-out <%= dark ? "bg-board-dark" : "bg-board-light" %>"
              data-tour-target="square"
              data-square-notation="<%= square.notation %>"
              data-action="click->tour#move"></div>
