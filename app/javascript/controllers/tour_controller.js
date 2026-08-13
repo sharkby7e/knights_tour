@@ -35,6 +35,8 @@ export default class extends Controller {
       el.textContent = view.current ? "♞" : ""
     })
 
+    const statusColor = state.statusVariant === "won" ? "text-board-legal" : state.statusVariant === "stuck" ? "text-board-visited" : ""
+    this.statusTarget.className = statusColor
     this.visitedCountTarget.textContent = state.visitedCount
     this.statusTarget.textContent = state.status
     this.undoButtonTarget.disabled = state.undoDisabled

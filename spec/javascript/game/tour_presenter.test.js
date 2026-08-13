@@ -32,17 +32,26 @@ test("renderState enables undo once a move has been made", () => {
   assert.ok(!state.undoDisabled)
 })
 
-test("renderState reports won status once all 64 squares are visited", () => {
+test("renderState reports won status and variant once all 64 squares are visited", () => {
   const game = new KnightTourGame()
   game.moves = Square.all()
   const state = renderState(game)
   assert.match(state.status, /won/i)
+  assert.equal(state.statusVariant, "won")
 })
 
-test("renderState reports stuck status at a real dead end", () => {
+test("renderState reports stuck status and variant at a real dead end", () => {
   const game = new KnightTourGame()
   ;[ "c2", "d4", "b3", "a1" ].forEach(n => attemptMove(game, n))
   const state = renderState(game)
   assert.match(state.status, /stuck/i)
+  assert.equal(state.statusVariant, "stuck")
   assert.ok(!state.undoDisabled)
+})
+
+test("renderState reports no status variant mid-game", () => {
+  const game = new KnightTourGame()
+  attemptMove(game, "a1")
+  const state = renderState(game)
+  assert.equal(state.statusVariant, null)
 })
