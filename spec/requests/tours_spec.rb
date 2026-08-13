@@ -13,7 +13,6 @@ RSpec.describe "Tours", type: :request do
       doc = Nokogiri::HTML5.fragment(response.body)
       expect(doc.at_css("[data-controller='tour']")).to be_present
       expect(doc.css("[data-square-notation]").count).to eq(64)
-      expect(doc.at_css("[data-tour-target='saveButton']")["disabled"]).to be_present
     end
   end
 

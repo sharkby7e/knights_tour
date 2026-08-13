@@ -18,7 +18,6 @@ export function renderState(game) {
     squares: boardView(game),
     visitedCount: game.visitedCount,
     status,
-    undoDisabled: game.visitedCount === 0,
-    saveDisabled: game.visitedCount === 0
+    undoDisabled: game.visitedCount === 0
   }
 }

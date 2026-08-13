@@ -20,9 +20,6 @@
         <p data-tour-target="status"></p>
         <button type="button" data-tour-target="undoButton" data-action="click->tour#undo" disabled>Undo</button>
         <button type="button" data-action="click->tour#restart">Restart</button>
-        <%= form_with url: tours_path, method: :post, data: { tour_target: "saveForm" } do |f| %>
-          <%= f.submit "Save Tour", data: { tour_target: "saveButton" }, disabled: true %>
-        <% end %>
       </div>
     </div>
   </div>

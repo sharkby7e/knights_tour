@@ -3,7 +3,7 @@ import { KnightTourGame } from "#game/knight_tour_game"
 import { attemptMove, renderState } from "#game/tour_presenter"
 
 export default class extends Controller {
-  static targets = [ "square", "visitedCount", "status", "undoButton", "saveButton", "saveForm" ]
+  static targets = [ "square", "visitedCount", "status", "undoButton" ]
 
   connect() {
     this.game = new KnightTourGame()
@@ -24,10 +24,6 @@ export default class extends Controller {
     this.render()
   }
 
-  save() {
-    // wired in step 8
-  }
-
   render() {
     const state = renderState(this.game)
 
@@ -40,6 +36,5 @@ export default class extends Controller {
     this.visitedCountTarget.textContent = state.visitedCount
     this.statusTarget.textContent = state.status
     this.undoButtonTarget.disabled = state.undoDisabled
-    this.saveButtonTarget.disabled = state.saveDisabled
   }
 }
