@@ -1,6 +1,10 @@
 class ToursController < ApplicationController
   before_action :set_tour, only: [ :show ]
 
+  def index
+    @pagy, @tours = pagy(Tour.includes(:moves).order(created_at: :desc), limit: 2)
+  end
+
   def new; end
 
   def show; end

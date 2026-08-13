@@ -1,0 +1,9 @@
+<div class="w-full max-w-7xl flex flex-col items-center">
+  <ul class="w-full grid grid-cols-1 sm:grid-cols-2 gap-10">
+    <%= render @tours %>
+  </ul>
+
+  <div class="mt-6 pagy-nav">
+    <%== pagy_nav(@pagy) %>
+  </div>
+</div>
