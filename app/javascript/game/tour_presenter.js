@@ -13,11 +13,13 @@ export function attemptMove(game, notation) {
 }
 
 export function renderState(game) {
-  const status = game.won ? "You won!" : game.stuck ? "Stuck — no legal moves left" : ""
+  const statusVariant = game.won ? "won" : game.stuck ? "stuck" : null
+  const status = statusVariant === "won" ? "You won!" : statusVariant === "stuck" ? "Stuck! Restart?" : game.visitedCount === 0 ? "Choose a starting square" : ""
   return {
     squares: boardView(game),
     visitedCount: game.visitedCount,
     status,
+    statusVariant,
     undoDisabled: game.visitedCount === 0
   }
 }

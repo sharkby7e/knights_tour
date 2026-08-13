@@ -17,12 +17,12 @@ test("attemptMove leaves the game untouched and returns false for an illegal mov
   assert.equal(game.visitedCount, 1)
 })
 
-test("renderState disables undo with no moves and reports 64 squares", () => {
+test("renderState disables undo with no moves, reports 64 squares, and prompts for a starting square", () => {
   const game = new KnightTourGame()
   const state = renderState(game)
   assert.equal(state.squares.length, 64)
   assert.ok(state.undoDisabled)
-  assert.equal(state.status, "")
+  assert.match(state.status, /starting square/i)
 })
 
 test("renderState enables undo once a move has been made", () => {
@@ -32,17 +32,27 @@ test("renderState enables undo once a move has been made", () => {
   assert.ok(!state.undoDisabled)
 })
 
-test("renderState reports won status once all 64 squares are visited", () => {
+test("renderState reports won status and variant once all 64 squares are visited", () => {
   const game = new KnightTourGame()
   game.moves = Square.all()
   const state = renderState(game)
   assert.match(state.status, /won/i)
+  assert.equal(state.statusVariant, "won")
 })
 
-test("renderState reports stuck status at a real dead end", () => {
+test("renderState reports stuck status and variant at a real dead end, prompting a restart", () => {
   const game = new KnightTourGame()
   ;[ "c2", "d4", "b3", "a1" ].forEach(n => attemptMove(game, n))
   const state = renderState(game)
   assert.match(state.status, /stuck/i)
+  assert.match(state.status, /restart/i)
+  assert.equal(state.statusVariant, "stuck")
   assert.ok(!state.undoDisabled)
+})
+
+test("renderState reports no status variant mid-game", () => {
+  const game = new KnightTourGame()
+  attemptMove(game, "a1")
+  const state = renderState(game)
+  assert.equal(state.statusVariant, null)
 })

@@ -1,267 +1,90 @@
 # Progress
 
-- [x] 1. JS `Square` port + `node:test` harness bootstrap
-- [x] 2. JS `MoveFinder` port
-- [x] 3. JS `KnightTourGame` port
-- [x] 4. JS `boardView` pure render-state helper
-- [x] 5. `tours#new` skeleton route + view; retire `Tour.current`/`#current`
-- [x] 6. Stimulus `TourController`: client-side play, no persistence yet
-- [ ] 7. `POST /tours` Save Tour endpoint: server-side replay validation
-- [ ] 8. Wire the Save button to the real endpoint
-- [ ] 9. `#show` simplified to a read-only saved-tour view
-- [ ] 10. Cleanup: delete `MovesController`/specs/routes, dangling references, fold this plan's "complete" summary in
-- [ ] 11. (Optional/stretch) One Capybara+Cuprite end-to-end system spec
+- [x] 1. Design tokens: board palette as Tailwind v4 `@theme` custom properties
+- [x] 2. Apply the new palette to board squares + state colors (legal/current/visited/stuck)
+- [x] 3. Motion: transition square state changes, knight-landing animation, legal-square hover
+- [x] 4. Style Undo/Restart buttons and status/visited-count text to match
+- [x] 5. Cross-check responsive breakpoints + full playthrough via `bin/dev`
 
 ---
 
-# Client-side game logic, deferred save
+# Board visuals: color + motion pass
 
 ## Context
 
-Even after the Turbo Frame rewrite, every move still costs a full server round trip (~250-400ms measured against the live Hetzner `eu-central` deploy, dominated by network RTT, not server processing which is ~20ms). Making that feel instant requires removing the round trip from the play loop entirely, not just hiding it — so this branch moves knight-move legality and game state (`Square`/`MoveFinder`/`KnightTourGame`) into JavaScript and runs play fully client-side. The DB is touched exactly once, when the player explicitly clicks **Save Tour** — decided over auto-save-on-completion because it lets partial/abandoned attempts be saved too, and matches "we only create moves when we save" literally. Refresh-resilience (localStorage) was explicitly decided against for v1 — a refresh mid-play loses progress, same cost already accepted for other trade-offs on this app.
+The board works end to end (client-side play shipped in the prior branch, see history below) but looks like placeholder Tailwind defaults — `bg-emerald-400`/`bg-red-400`/`bg-slate-500`/`bg-[#e0cf9c]` picked for correctness, not cohesion, and the Undo/Restart buttons currently have zero styling at all (bare native `<button>`s). This branch is a pure visual pass: a real color palette plus motion (transitions, a landing animation, hover states) — no behavior changes. Scoped to "color pass" + "motion & polish" together, per the user.
 
-Known, accepted trade-off: today `/` shows one shared *live* tour — any visitor mid-play sees the same in-progress board. After this change, unsaved play only exists in the browser that's playing it; "shared" only applies to tours after they're saved. Intentional, discussed with the user, not something to design around.
-
-Out of scope: accounts/auth, per-user scoping, the visited-squares-heatmap feature, deploy/infra config changes.
-
-## Summary of what changes
-
-| Today | After |
-|---|---|
-| `root "tours#current"` — lazily creates/reuses `Tour.current` | `root "tours#new"` — static skeleton, no DB write |
-| `ToursController#current` | Removed |
-| `ToursController#show` | Kept, simplified to read-only (no legal-move links, no Undo/Restart) |
-| `ToursController#create` ("Restart") | Repurposed as **Save Tour**: accepts ordered `squares[]`, replays server-side through real `KnightTourGame`, persists transactionally |
-| `MovesController`, `resources :moves` | Deleted entirely — no more per-move network round trip |
-| `Tour.current` | Deleted |
-| `Square`, `MoveFinder`, `KnightTourGame` (Ruby) | Unchanged code, new role: server-side authority used only to validate a Save |
-| `spec/requests/moves_spec.rb` | Deleted |
-| `spec/requests/tours_spec.rb` | Rewritten for new `/`, `/tours/:id`, `POST /tours` behavior |
-| JS engine (`app/javascript/game/*.mjs`) | New — 1:1 port of `Square`/`MoveFinder`/`KnightTourGame`, unit tested via Node's built-in `node:test` (no new deps, no bundler, no `package.json`) |
-| `Stimulus TourController` | New — owns in-memory game state, wires clicks/undo/restart/save, re-renders whole board each change |
+Out of scope: Save Tour (steps 7-11 of the prior plan, deferred to its own future branch — see history below), per-user theming (this branch just gets the palette off inline Tailwind defaults and onto named tokens, which makes theming *easier* later, but doesn't build theming itself).
 
 ## Plan
 
-### 1. JS `Square` port + test harness
+### 1. Design tokens: board palette as Tailwind v4 `@theme` custom properties
 
-**Goal**: establish the JS test convention on the smallest class first. Use Node's built-in `node:test`/`node:assert` — zero install, nothing for Dependabot/`bin/importmap audit` to track, given this repo has no `package.json`/npm at all today.
+**Goal**: one source of truth for board colors, instead of the ad hoc Tailwind utility classes duplicated across `board_view.js`'s `BG` map and the dark/light inline ternary in `new.html.erb`.
 
-**Files**:
-- `app/javascript/game/square.mjs` — port of `app/models/square.rb`
-- `app/javascript/game/square.test.mjs` — mirrors `spec/models/square_spec.rb`
-- `bin/jstest`: `#!/usr/bin/env sh` + `exec node --test app/javascript/game` (chmod +x, matches `bin/rubocop` convention)
-- `config/importmap.rb`: explicit `pin "game/square", to: "game/square.mjs"` (not `pin_all_from`, for a predictable logical name)
+This app uses Tailwind v4 (`app/assets/tailwind/application.css` is just `@import "tailwindcss";`, no `tailwind.config.js`), where a `@theme { --color-x: ... }` block auto-generates matching utilities (`--color-board-light` → `bg-board-light`, `text-board-light`, etc). Add a `@theme` block there defining: `--color-board-light`, `--color-board-dark`, `--color-board-current`, `--color-board-legal`, `--color-board-visited`, `--color-board-stuck`.
 
-```js
-const FILES = ["a","b","c","d","e","f","g","h"]
+**Verify**: `bin/dev`, confirm the new utility classes apply (even with placeholder values first) before touching the actual palette in step 2.
 
-export class Square {
-  constructor(x, y) {
-    if (!Number.isInteger(x) || x < 1 || x > 8) throw new RangeError(`x out of bounds: ${x}`)
-    if (!Number.isInteger(y) || y < 1 || y > 8) throw new RangeError(`y out of bounds: ${y}`)
-    this.x = x; this.y = y
-    Object.freeze(this)
-  }
-  static fromNotation(notation) {
-    const match = /^([a-h])([1-8])$/.exec(String(notation))
-    if (!match) throw new RangeError(`invalid square: ${notation}`)
-    return new Square(FILES.indexOf(match[1]) + 1, Number(match[2]))
-  }
-  static all() {
-    if (!Square._all) {
-      const squares = []
-      for (let y = 8; y >= 1; y--) for (let x = 1; x <= 8; x++) squares.push(new Square(x, y))
-      Square._all = squares
-    }
-    return Square._all
-  }
-  get notation() { return `${FILES[this.x - 1]}${this.y}` }
-  get domId() { return `square_${this.notation}` }
-  equals(other) { return other instanceof Square && this.x === other.x && this.y === other.y }
-}
-```
+### 2. Apply the new color palette
 
-Test cases (mirror `square_spec.rb`): notation round trip; `all()` order `a8..h8, ..., a1..h1` (64 total); out-of-bounds/malformed → throw; `.equals()` used for array membership since JS has no structural `.includes()`.
+Direction: chess.com's "blue" board theme, per a reference screenshot the user shared — dusty blue-grey dark squares, cream light squares. Concrete values (`@theme` in `app/assets/tailwind/application.css`):
 
-**Verify**: `bin/jstest` green.
+- Light squares: `#ebecd0` (cream) instead of `slate-100`
+- Dark squares: `#7c8fb0` (dusty blue) instead of `slate-500`
+- Current square (knight's position): `#f5cf6b` (warm gold) instead of `#e0cf9c`
+- Legal move: `#7fc8a9` (muted seafoam) instead of neon `emerald-400` — softer highlight, not a full-square neon fill
+- Visited: `#d98a8a` (muted coral) instead of `red-400` — visited isn't an error state
+- Stuck (whole-board grey-out): `#46423f` (warm charcoal) instead of stock `zinc-700`, echoing the page's dark background
+- New `--color-accent`/`--color-accent-hover` tokens (`#81b64c`/`#6ea23e`, chess.com-style green) for the primary action button in step 4
 
-### 2. JS `MoveFinder` port
+Self-host a title font (Poppins 600/700, Latin subset only, `app/assets/fonts/`) via `@font-face` in the same file, exposed as a `--font-title` token — avoids a runtime dependency on Google's font CDN for a self-hosted Kamal deploy. Not applied to any element yet (that's step 4); this step just makes it available.
 
-```js
-import { Square } from "./square.mjs"
-const MOVE_SET = [[1,2],[2,1],[2,-1],[1,-2],[-1,-2],[-2,-1],[-2,1],[-1,2]]
-export class MoveFinder {
-  constructor(square) { this.square = square }
-  legalMoves() {
-    return this.moveCandidates()
-      .filter(([x, y]) => x >= 1 && x <= 8 && y >= 1 && y <= 8)
-      .map(([x, y]) => new Square(x, y))
-  }
-  moveCandidates() { return MOVE_SET.map(([dx, dy]) => [this.square.x + dx, this.square.y + dy]) }
-}
-```
-Pin `game/move_finder`. Tests mirror `move_finder_spec.rb`: 8 deltas from center; corner (`a1`) filters to `{b3, c2}`.
+Update `board_view.js`'s `BG` map and `new.html.erb`'s inline dark/light class to reference the new `bg-board-*` utilities. **Both places must move together** — they're two independent copies of the same dark/light logic (server-rendered initial paint vs. JS re-render) and already had to be kept in sync before this branch.
 
-**Verify**: `bin/jstest`.
+**Verify**: `bin/dev` — screenshot for a gut-check before moving on to motion.
 
-### 3. JS `KnightTourGame` port
+### 3. Motion: transitions, landing animation, hover
 
-Deliberate shape difference from Ruby: Ruby's version wraps a DB-backed `tour:`; the JS version *is* the tour — holds its own in-memory ordered `moves` array (nothing persisted until Save).
+- Every square gets `transition-colors duration-200 ease-out` so state changes animate instead of snapping (today `render()` fully replaces `className` with zero transition).
+- A small "landing" animation (scale pop via a `@theme` `--animate-*` keyframe or a plain Tailwind `animate-` utility) on the square that becomes `current` after a move.
+- Legal-move squares get a hover affordance (`hover:brightness-110` + subtle `hover:scale-105`, transformed) to invite clicking.
 
-```js
-import { Square } from "./square.mjs"
-import { MoveFinder } from "./move_finder.mjs"
-export class IllegalMoveError extends Error {}
-export class KnightTourGame {
-  constructor() { this.moves = [] }
-  get currentSquare() { return this.moves.length ? this.moves[this.moves.length - 1] : null }
-  get lastMove() { return this.currentSquare }
-  visited(square) { return this.moves.some(m => m.equals(square)) }
-  get legalMovesFrom() {
-    if (this.moves.length === 0) return Square.all()
-    return new MoveFinder(this.currentSquare).legalMoves().filter(sq => !this.visited(sq))
-  }
-  visit(square) {
-    if (!this.legalMovesFrom.some(sq => sq.equals(square))) throw new IllegalMoveError(`${square.notation} is not legal`)
-    this.moves.push(square)
-    return square
-  }
-  undo() { this.moves.pop() }
-  get visitedCount() { return this.moves.length }
-  get won() { return this.visitedCount === 64 }
-  get stuck() { return this.visitedCount > 0 && !this.won && this.legalMovesFrom.length === 0 }
-  notationPath() { return this.moves.map(sq => sq.notation) }
-}
-```
-Pin `game/knight_tour_game`. Tests mirror `knight_tour_game_spec.rb` 1:1, including fabricating state directly (`game.moves = Square.all()`) to test `won`/`stuck` the same way the Ruby spec bypasses `visit!` via factories, and the exact dead-end sequence `c2→d4→b3→a1` for `stuck`.
+**Verify**: `bin/dev` — move around the board, confirm transitions read as smooth (not janky) and don't cause layout shift; confirm the win/stuck states (which recolor all 64 squares at once) don't feel chaotic with transitions applied to every square simultaneously.
 
-**Verify**: `bin/jstest`.
+### 4. Style Undo/Restart buttons, apply title font, round the board
 
-### 4. JS `boardView` — pure per-square render state
+Undo/Restart are currently bare unstyled native `<button>` elements. Restart becomes the primary action (`bg-accent`, bold white text, rounded-lg, hover/active states) — the closest analog to chess.com's green "Start Game"; Undo becomes a secondary/neutral button with a visibly greyed `disabled` state. Give the status text (`won`/`stuck` message) a color treatment tied to state. Apply `font-title` (Poppins, from step 2) to the `<h1>`. Round the `#board` grid container's outer corners (`rounded-lg overflow-hidden`, `overflow-hidden` needed so the individually-square-cornered cells clip cleanly) plus a subtle container shadow, so the 64 squares read as one board object rather than a loose grid — "a little roundness," not fully rounded squares.
 
-Ports the derived-state math in `squares/_square.html.erb`. Note: in the current partial, the visible color priority (once you account for the `link_to_if legal` emerald overlay sitting on top of `bg_class`) is **`stuck > legal > current > visited > dark/light`** — collapses cleanly since a legal square can never simultaneously be current or visited.
+**Verify**: `bin/dev` — full manual check of button states (Undo disabled at start, enabled after first move, hover/active feel right), title renders in Poppins, board corners look right at both breakpoints.
 
-```js
-import { Square } from "./square.mjs"
-const BG = { stuck: "bg-zinc-700", legal: "bg-emerald-400", current: "bg-[#e0cf9c]", visited: "bg-red-400", dark: "bg-slate-500", light: "bg-slate-100" }
-export function squareView(game, square) {
-  const stuck = game.stuck
-  const current = !!game.currentSquare && square.equals(game.currentSquare)
-  const visited = game.visited(square)
-  const legal = !stuck && game.legalMovesFrom.some(sq => sq.equals(square))
-  const dark = (square.x + square.y) % 2 === 1
-  const bgClass = stuck ? BG.stuck : legal ? BG.legal : current ? BG.current : visited ? BG.visited : dark ? BG.dark : BG.light
-  return { square, stuck, current, visited, legal, dark, bgClass }
-}
-export function boardView(game) { return Square.all().map(sq => squareView(game, sq)) }
-```
-Pin `game/board_view`. Tests port the coloring assertions currently in `moves_spec.rb`/`tours_spec.rb`: stuck → all 64 `bg-zinc-700`; one legal move → `c2`/`b3` emerald, `h8` not; current square shows regardless of checkerboard parity.
+### 5. Cross-check + full playthrough
 
-**Verify**: `bin/jstest`.
+Manual `bin/dev` pass across both breakpoints (`w-10 h-10` mobile vs `sm:w-24 sm:h-24` desktop) and a full playthrough: legal moves, undo, restart, a real dead end (stuck — all 64 recolor), and a completed 64/64 tour (win). No automated spec for this branch — it's a pure visual pass, same "manual verification" precedent as the prior Stimulus-controller step.
 
-### 5. `tours#new` skeleton route + view; retire `Tour.current`
+**Verify**: `bin/rubocop`/`bin/brakeman` clean (no Ruby logic changed, but touched files); hand-tested by the user in-browser per usual.
 
-**Goal**: `GET /` becomes a pure, DB-free static page — the biggest behavioral break from today.
+**Done**: this step ended up being many small rounds of hand-testing + live feedback rather than one pass at the end — palette darkened and the gold current-square color desubdued, grid lines removed then brought back darker then lighter again, knight swapped between three different SVGs before landing back on the original Cburnett one, landing animation tuned through several bounce levels, two rounds of real layout-shift bugs (vertical, then horizontal) caught and fixed by locking down fixed sizes rather than guessing, the "everything is legal before the first move" visual issue fixed with a "Choose a starting square" prompt, and Undo/Restart reworked into square icon buttons. See `git log` on this branch for the full blow-by-blow. Final user reaction: "wow okay i love it."
 
-Routes: `root "tours#new"`; `resources :tours, only: [ :create, :show ]`.
+---
 
-Remove `Tour.current` from `app/models/tour.rb` (nothing else calls it once `#current` is gone); trim its spec.
+# Client-side game logic (steps 1-6 shipped, Save Tour deferred)
 
-Controller gets a bare `def new; end`.
+## Context
 
-View `app/views/tours/new.html.erb` (sketch, Tailwind classes carried over): a `data-controller="tour"` wrapper, `#board` of 64 divs with `data-tour-target="square"`, `data-square-notation`, `data-action="click->tour#move"`; `#visited_count` and `#tour_control` with Stimulus targets for status/undo/restart/save; a real `form_with url: tours_path, method: :post` for Save (not `fetch`, so CSRF/Turbo navigation come for free). Deliberately **no** `turbo_frame_tag` wrapper — there's no per-move round trip to scope anymore, and Save's redirect needs to be a real full-page navigation to `/tours/:id`.
+Even after the Turbo Frame rewrite, every move cost a full server round trip (~250-400ms on the live Hetzner deploy, dominated by network RTT). This branch moved knight-move legality and game state (`Square`/`MoveFinder`/`KnightTourGame`) into JavaScript so play runs fully client-side with zero network activity per move. Merged via [PR #7](https://github.com/sharkby7e/knights_tour/pull/7) and deployed live.
 
-Spec (`GET /`): `not_to change(Tour, :count)`, skeleton markup present (64 `[data-square-notation]`, `[data-controller='tour']`, disabled save button).
+## What shipped (steps 1-6)
 
-**Verify**: `bundle exec rspec spec/requests/tours_spec.rb` (this block only — rest red until later steps, expected); `bin/dev` — `/` loads an inert, correctly-checkerboarded board, no clicks wired yet.
+1. JS port of `Square`/`MoveFinder`/`KnightTourGame`/`boardView` (`app/javascript/game/*.js`), unit tested via Node's built-in `node:test` (`spec/javascript/`) — no bundler, no external deps.
+2. `GET /` became a DB-free static skeleton (`tours#new`); `Tour.current`/`ToursController#current` deleted.
+3. Stimulus `TourController` + a pure `tour_presenter.js` module wire up full client-side play — move/undo/restart/win/stuck — with zero persistence.
+4. Established the `#game/*` bare-specifier pattern (`package.json`'s `imports` field + `config/importmap.rb`'s `pin_all_from ... under: "#game", to: "game"`) so new shared JS modules need zero manual importmap/package.json bookkeeping, mirroring how Stimulus controllers already auto-register.
+5. Surfaced and fixed two real bugs only visible once this was actually loaded in a browser (not just `node:test`): Propshaft not knowing the `.mjs` MIME type, and fingerprinted asset URLs breaking relative cross-module imports.
 
-**Done**: also trimmed `tours_spec.rb`'s "makes the fresh tour current" `POST /tours` example — it asserted the old root-reflects-current-tour behavior this step retires. Known, expected collateral: 3 examples in `spec/requests/moves_spec.rb` now fail because they observe move effects via `get root_path`, which no longer reflects any tour state — that file is fully deleted in step 10 along with `MovesController`, so not fixed here.
+## Deferred to a future branch (steps 7-11, not done)
 
-### 6. Stimulus `TourController` — client-side play
-
-**Goal**: full play (move/undo/restart/win/stuck) works entirely client-side, zero persistence.
-
-Split into a thin Stimulus controller (`app/javascript/controllers/tour_controller.js`, DOM-wiring glue only — targets, `connect`/`move`/`undo`/`restart`/`save`/`render`) plus a pure, unit-tested presenter module (`app/javascript/game/tour_presenter.js`, exporting `attemptMove(game, notation)` and `renderState(game)`), so the actual game-state-to-render-state logic stays spec-covered even though the controller itself has no spec (DOM-wiring glue, nothing left to unit test beyond what `tour_presenter.test.js` and steps 1-4 already cover — same precedent as this repo's prior Turbo Frame step).
-
-**Named exception to the TDD cadence**: verification of the controller itself is manual `bin/dev` click-through, not an automated spec.
-
-**Done — real bugs surfaced by actually loading this in a browser** (steps 1-4's `.mjs` port was only ever exercised via `node:test` before now, never served to a browser):
-
-1. **MIME type**: Propshaft resolves an asset's `Content-Type` via Rails' `Mime::Type` registry, which knows `.js` but not `.mjs` — `.mjs` assets served with an empty `Content-Type`, which browsers refuse to load as a module.
-2. **Fingerprinted relative imports**: every game file except `square.mjs` imported its siblings via relative paths (`./square.mjs`). That's fine for `node:test`, but broken once served through Propshaft — the browser resolves `./square.mjs` relative to the *digested* URL (e.g. `/assets/game/knight_tour_game-<hash>.mjs`), landing on an undigested URL Propshaft never serves (404).
-
-Rather than patch around these, the fix was structural, and doubles as the answer to "does this pattern scale to more controllers/modules":
-
-- Renamed all `app/javascript/game/*.mjs` → `*.js` (sidesteps the MIME gap entirely — no initializer needed) and relocated their tests to `spec/javascript/game/*.test.js` (out of the pinned directory, so tests never get swept into the browser bundle).
-- Cross-module imports switched to `#game/*` bare specifiers, resolved identically in both runtimes with **zero per-file bookkeeping**: `package.json`'s `imports` field (`"#game/*": "./app/javascript/game/*.js"`, a Node built-in, no dependency) for `node --test`, and `config/importmap.rb`'s `pin_all_from "app/javascript/game", under: "#game", to: "game"` for the browser. New shared game modules just need to exist on disk — no `importmap.rb`/`package.json` edit, mirroring how `pin_all_from "app/javascript/controllers", under: "controllers"` already auto-registers new Stimulus controllers. (The `to: "game"` matters — without it `pin_all_from` computes the served asset path from `under` too, tries to resolve assets at a nonexistent `#game/...` path, and silently drops every entry.)
-- `bin/jstest` now runs `node --test spec/javascript` (was `app/javascript/game`).
-
-**Verify**: `bin/jstest` and `bundle exec rspec` green; `bin/dev` — legal (emerald) clicks move the knight instantly with zero network activity (checked devtools Network tab); Undo/Restart work; dead end grays the whole board; 64/64 shows a win state; confirmed via hand-test, no console errors.
-
-### 7. `POST /tours` — Save Tour endpoint, server-side replay validation
-
-**Goal**: the only DB write in the whole flow — never trusts the client.
-
-```ruby
-class ToursController < ApplicationController
-  def new; end
-
-  def create
-    squares = Array(params[:squares]).map { |n| Square.from_notation(n) }
-    raise ArgumentError, "no moves to save" if squares.empty?
-
-    tour = nil
-    ActiveRecord::Base.transaction do
-      tour = Tour.create!
-      game = KnightTourGame.new(tour: tour)
-      squares.each { |square| game.visit!(square) }
-    end
-
-    redirect_to tour_path(tour), notice: "Tour saved!"
-  rescue ArgumentError, KnightTourGame::IllegalMoveError
-    redirect_to root_path, alert: "Could not save — invalid move sequence."
-  end
-end
-```
-A raised exception inside `transaction { }` rolls back and re-raises, so the method-level `rescue` catches it cleanly post-rollback. Add a minimal flash partial to `app/views/layouts/application.html.erb` (none exists yet).
-
-Specs: legal partial sequence saves + redirects to `tour_path`; illegal sequence (e.g. `a1 → h8`) persists nothing, redirects to `/`; malformed notation persists nothing; empty list rejected; a full 64-move legal sequence saves and wins. The 64-move fixture must be a genuine legal open tour — sanity-check it once in the spec by replaying through the real Ruby engine before trusting it as a constant.
-
-**Verify**: `bundle exec rspec spec/requests/tours_spec.rb`.
-
-### 8. Wire the Save button to the real endpoint
-
-`TourController#save` injects hidden `squares[]` inputs from `this.game.notationPath()` into the already-rendered form, then lets it submit as an ordinary Rails form POST (Turbo intercepts, follows the redirect as a full navigation since it's outside any frame, disables the button for the duration automatically).
-
-**Verify**: `bundle exec rspec spec/requests/tours_spec.rb` (still green, no server change); `bin/dev` — play a partial or full tour, Save, land on `/tours/:id` showing exactly the played path.
-
-### 9. `#show` simplified to a read-only saved-tour view
-
-`MovesController` is going away next step, so `_square.html.erb`'s legal-move link must go regardless — also drop `legal`/`stuck` from the saved view entirely (not meaningful for a static historical record; a saved tour can be incomplete per the save-anytime decision).
-
-`ToursController#show` unchanged in shape. `squares/_square.html.erb` (used only here now) drops to just `current`/`visited`/`dark` coloring, no link. `tours/_control.html.erb` (for show) drops Undo/Restart, shows an outcome line + "New Tour" link back to `/`. `tours/show.html.erb` drops the `turbo_frame_tag` wrapper — nothing swaps into it anymore, it's a plain static page.
-
-Spec: keep board/visited-count/control presence checks; replace "highlights legal squares" (route gone) with "renders no clickable move links" + visited/current coloring off fabricated `Move`s.
-
-**Verify**: `bundle exec rspec spec/requests/tours_spec.rb`; `bin/dev` full loop: play → Save → land on `/tours/:id`, confirm static + correctly colored.
-
-### 10. Cleanup
-
-- Delete `app/controllers/moves_controller.rb`, `spec/requests/moves_spec.rb`.
-- Grep and remove dangling references: `tour_moves_path`, `tour_move_path`, `Tour.current`, leftover `turbo_frame_tag "tour"`.
-- Keep the `:move` FactoryBot factory — still used by `knight_tour_game_spec.rb` and `#show` specs to fabricate persisted state.
-- Fold this plan down into "complete, kept for history" in `docs/PLAN.md`, per this repo's own living-plan convention.
-- Note, not required for this feature: CI (`.github/workflows/ci.yml`) doesn't run `bundle exec rspec` at all today — a pre-existing gap. If picked up later, wiring `bin/jstest` in alongside a first-time `rspec` CI step is natural but separate work.
-
-**Verify**: `bundle exec rspec` full suite green; `bin/jstest` green; `bin/rubocop`/`bin/brakeman` clean.
-
-### 11. (Optional/stretch) One real-browser system spec
-
-Everything above is covered by JS unit tests + request specs (server replay validation) + manual `bin/dev` verification, not an automated browser test — there's currently zero Capybara/Selenium/Cuprite in the Gemfile, and adding one is a real new dependency (needs a Chrome binary locally/in CI) for a codebase whose CI doesn't even run `rspec` yet. If deeper integration coverage (Stimulus wiring, real clicks, CSRF, the Turbo full-navigation redirect) is wanted later: add `capybara` + `cuprite` (CDP-direct, no Selenium driver-manager layer) to `group :test`, register a `:cuprite` system-spec driver, one spec exercising the full click-through-Save-to-`/tours/:id` path. Flagged optional because it's the one part of this plan adding new infrastructure rather than working within what's already here — not because it lacks value.
-
-## Verification (end to end, once all steps land)
-
-`bundle exec rspec` full suite green; `bin/jstest` green; `docker build` succeeds; full manual playthrough via `bin/dev` — play fully client-side with no network activity per move, Save Tour persists and redirects to a real per-tour URL, `/tours/:id` renders that saved tour read-only.
+The Save Tour endpoint (`POST /tours` with server-side replay validation), wiring a Save button to it, simplifying `#show` to a read-only saved-tour view, and the `MovesController`/dead-code cleanup that depends on Save existing. The Save button that existed mid-branch was removed entirely (not shipped disabled) since it was already wired to the old `#create` stub and would've silently created empty `Tour` rows — see `git log` on `main` for the removal commit. Full original step-by-step detail for 7-11 lives in this file's git history on the `client-side-game-logic` branch/PR if picked back up.
 
 ---
 
