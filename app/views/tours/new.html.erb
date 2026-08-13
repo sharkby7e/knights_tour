@@ -16,15 +16,15 @@
         <p>Visited Squares</p>
         <p data-tour-target="visitedCount">0</p>
       </div>
-      <div id="tour_control" class="w-72 flex flex-col space-y-4 text-zinc-300 text-center">
+      <div id="tour_control" class="w-72 flex flex-col items-center space-y-4 text-zinc-300 text-center">
         <p data-tour-target="status" class="h-7 flex items-center justify-center text-xl whitespace-nowrap">Choose a starting square</p>
-        <button type="button" data-action="click->tour#restart"
-                class="bg-accent hover:bg-accent-hover text-white font-semibold text-xl px-6 py-2 rounded-lg transition-colors duration-200 cursor-pointer">
-          Restart
-        </button>
         <button type="button" data-tour-target="undoButton" data-action="click->tour#undo" disabled
                 class="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 disabled:hover:bg-zinc-700 text-zinc-200 font-semibold text-xl px-6 py-2 rounded-lg transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed">
           Undo
+        </button>
+        <button type="button" data-action="click->tour#restart"
+                class="bg-accent hover:bg-accent-hover text-white font-semibold text-xl px-6 py-2 rounded-lg transition-colors duration-200 cursor-pointer">
+          Restart
         </button>
       </div>
     </div>
