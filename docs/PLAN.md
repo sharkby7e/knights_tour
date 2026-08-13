@@ -1,7 +1,7 @@
 # Progress
 
 - [x] 1. Design tokens: board palette as Tailwind v4 `@theme` custom properties
-- [ ] 2. Apply the new palette to board squares + state colors (legal/current/visited/stuck)
+- [x] 2. Apply the new palette to board squares + state colors (legal/current/visited/stuck)
 - [ ] 3. Motion: transition square state changes, knight-landing animation, legal-square hover
 - [ ] 4. Style Undo/Restart buttons and status/visited-count text to match
 - [ ] 5. Cross-check responsive breakpoints + full playthrough via `bin/dev`
@@ -28,14 +28,17 @@ This app uses Tailwind v4 (`app/assets/tailwind/application.css` is just `@impor
 
 ### 2. Apply the new color palette
 
-Starting direction (adjust after a visual gut-check, not precious about exact values): the page background is already `bg-zinc-800`, so lean into that rather than dropping a generic grey/white checkerboard on top of it —
+Direction: chess.com's "blue" board theme, per a reference screenshot the user shared — dusty blue-grey dark squares, cream light squares. Concrete values (`@theme` in `app/assets/tailwind/application.css`):
 
-- Light squares: warm ivory (`#ede4d3`-ish) instead of `slate-100`
-- Dark squares: deep plum-slate (`#3d3a52`-ish) instead of `slate-500` — echoes the page background so the board reads as one integrated object
-- Current square (knight's position): refined warm gold (`#e0b95c`-ish, tightened from the existing `#e0cf9c`)
-- Legal move: soft teal (`#5eead4`-ish) instead of neon `emerald-400`
-- Visited: muted rose (`#c76b7a`-ish) instead of `red-400` (softer — visited isn't an error state)
-- Stuck (whole-board grey-out): keep desaturated but warm it slightly to match the new palette instead of stock `zinc-700`
+- Light squares: `#ebecd0` (cream) instead of `slate-100`
+- Dark squares: `#7c8fb0` (dusty blue) instead of `slate-500`
+- Current square (knight's position): `#f5cf6b` (warm gold) instead of `#e0cf9c`
+- Legal move: `#7fc8a9` (muted seafoam) instead of neon `emerald-400` — softer highlight, not a full-square neon fill
+- Visited: `#d98a8a` (muted coral) instead of `red-400` — visited isn't an error state
+- Stuck (whole-board grey-out): `#46423f` (warm charcoal) instead of stock `zinc-700`, echoing the page's dark background
+- New `--color-accent`/`--color-accent-hover` tokens (`#81b64c`/`#6ea23e`, chess.com-style green) for the primary action button in step 4
+
+Self-host a title font (Poppins 600/700, Latin subset only, `app/assets/fonts/`) via `@font-face` in the same file, exposed as a `--font-title` token — avoids a runtime dependency on Google's font CDN for a self-hosted Kamal deploy. Not applied to any element yet (that's step 4); this step just makes it available.
 
 Update `board_view.js`'s `BG` map and `new.html.erb`'s inline dark/light class to reference the new `bg-board-*` utilities. **Both places must move together** — they're two independent copies of the same dark/light logic (server-rendered initial paint vs. JS re-render) and already had to be kept in sync before this branch.
 
@@ -49,11 +52,11 @@ Update `board_view.js`'s `BG` map and `new.html.erb`'s inline dark/light class t
 
 **Verify**: `bin/dev` — move around the board, confirm transitions read as smooth (not janky) and don't cause layout shift; confirm the win/stuck states (which recolor all 64 squares at once) don't feel chaotic with transitions applied to every square simultaneously.
 
-### 4. Style Undo/Restart buttons + status/visited-count text
+### 4. Style Undo/Restart buttons, apply title font, round the board
 
-Undo/Restart are currently bare unstyled native `<button>` elements. Give them real styling matching the new palette: rounded, hover/active states, a visibly greyed `disabled` state for Undo. Give the status text (`won`/`stuck` message) a color treatment tied to state. Consider rounding the board's outer corners / a subtle container shadow so the 64 squares read as one board rather than a loose grid.
+Undo/Restart are currently bare unstyled native `<button>` elements. Restart becomes the primary action (`bg-accent`, bold white text, rounded-lg, hover/active states) — the closest analog to chess.com's green "Start Game"; Undo becomes a secondary/neutral button with a visibly greyed `disabled` state. Give the status text (`won`/`stuck` message) a color treatment tied to state. Apply `font-title` (Poppins, from step 2) to the `<h1>`. Round the `#board` grid container's outer corners (`rounded-lg overflow-hidden`, `overflow-hidden` needed so the individually-square-cornered cells clip cleanly) plus a subtle container shadow, so the 64 squares read as one board object rather than a loose grid — "a little roundness," not fully rounded squares.
 
-**Verify**: `bin/dev` — full manual check of button states (Undo disabled at start, enabled after first move, hover/active feel right).
+**Verify**: `bin/dev` — full manual check of button states (Undo disabled at start, enabled after first move, hover/active feel right), title renders in Poppins, board corners look right at both breakpoints.
 
 ### 5. Cross-check + full playthrough
 
