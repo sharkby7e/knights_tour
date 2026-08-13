@@ -1,0 +1,6 @@
+{
+  "type": "module",
+  "imports": {
+    "#game/*": "./app/javascript/game/*.js"
+  }
+}
