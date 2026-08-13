@@ -4,7 +4,7 @@
 - [x] 2. Apply the new palette to board squares + state colors (legal/current/visited/stuck)
 - [x] 3. Motion: transition square state changes, knight-landing animation, legal-square hover
 - [x] 4. Style Undo/Restart buttons and status/visited-count text to match
-- [ ] 5. Cross-check responsive breakpoints + full playthrough via `bin/dev`
+- [x] 5. Cross-check responsive breakpoints + full playthrough via `bin/dev`
 
 ---
 
@@ -63,6 +63,8 @@ Undo/Restart are currently bare unstyled native `<button>` elements. Restart bec
 Manual `bin/dev` pass across both breakpoints (`w-10 h-10` mobile vs `sm:w-24 sm:h-24` desktop) and a full playthrough: legal moves, undo, restart, a real dead end (stuck — all 64 recolor), and a completed 64/64 tour (win). No automated spec for this branch — it's a pure visual pass, same "manual verification" precedent as the prior Stimulus-controller step.
 
 **Verify**: `bin/rubocop`/`bin/brakeman` clean (no Ruby logic changed, but touched files); hand-tested by the user in-browser per usual.
+
+**Done**: this step ended up being many small rounds of hand-testing + live feedback rather than one pass at the end — palette darkened and the gold current-square color desubdued, grid lines removed then brought back darker then lighter again, knight swapped between three different SVGs before landing back on the original Cburnett one, landing animation tuned through several bounce levels, two rounds of real layout-shift bugs (vertical, then horizontal) caught and fixed by locking down fixed sizes rather than guessing, the "everything is legal before the first move" visual issue fixed with a "Choose a starting square" prompt, and Undo/Restart reworked into square icon buttons. See `git log` on this branch for the full blow-by-blow. Final user reaction: "wow okay i love it."
 
 ---
 
