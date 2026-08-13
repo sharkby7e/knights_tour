@@ -4,7 +4,7 @@
 - [x] 2. JS `MoveFinder` port
 - [x] 3. JS `KnightTourGame` port
 - [x] 4. JS `boardView` pure render-state helper
-- [ ] 5. `tours#new` skeleton route + view; retire `Tour.current`/`#current`
+- [x] 5. `tours#new` skeleton route + view; retire `Tour.current`/`#current`
 - [ ] 6. Stimulus `TourController`: client-side play, no persistence yet
 - [ ] 7. `POST /tours` Save Tour endpoint: server-side replay validation
 - [ ] 8. Wire the Save button to the real endpoint
@@ -174,6 +174,8 @@ View `app/views/tours/new.html.erb` (sketch, Tailwind classes carried over): a `
 Spec (`GET /`): `not_to change(Tour, :count)`, skeleton markup present (64 `[data-square-notation]`, `[data-controller='tour']`, disabled save button).
 
 **Verify**: `bundle exec rspec spec/requests/tours_spec.rb` (this block only — rest red until later steps, expected); `bin/dev` — `/` loads an inert, correctly-checkerboarded board, no clicks wired yet.
+
+**Done**: also trimmed `tours_spec.rb`'s "makes the fresh tour current" `POST /tours` example — it asserted the old root-reflects-current-tour behavior this step retires. Known, expected collateral: 3 examples in `spec/requests/moves_spec.rb` now fail because they observe move effects via `get root_path`, which no longer reflects any tour state — that file is fully deleted in step 10 along with `MovesController`, so not fixed here.
 
 ### 6. Stimulus `TourController` — client-side play
 

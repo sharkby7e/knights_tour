@@ -1,9 +1,5 @@
 class ToursController < ApplicationController
-  def current
-    @tour = Tour.current
-    @game = KnightTourGame.new(tour: @tour)
-    render :show
-  end
+  def new; end
 
   def show
     @tour = Tour.find(params[:id])

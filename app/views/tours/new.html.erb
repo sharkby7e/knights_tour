@@ -1,0 +1,29 @@
+<div class="bg-zinc-800 p-8 h-full w-full flex flex-col items-center justify-center space-y-10" data-controller="tour">
+  <h1 class="text-4xl text-zinc-300 font-semibold">A Knight's Tour</h1>
+  <div class="flex flex-col sm:flex-row gap-x-10 gap-y-10 items-center">
+    <div id="board" class="grid grid-rows-8 grid-cols-8">
+      <% Square.all.each do |square| %>
+        <% dark = (square.x + square.y).odd? %>
+        <div id="<%= square.dom_id %>"
+             class="w-10 h-10 sm:w-24 sm:h-24 flex items-center justify-center text-3xl sm:text-5xl border border-gray-400 <%= dark ? "bg-slate-500" : "bg-slate-100" %>"
+             data-tour-target="square"
+             data-square-notation="<%= square.notation %>"
+             data-action="click->tour#move"></div>
+      <% end %>
+    </div>
+    <div class="flex flex-col space-y-4 items-center">
+      <div id="visited_count" class="text-3xl text-zinc-300 text-center">
+        <p>Visited Squares</p>
+        <p data-tour-target="visitedCount">0</p>
+      </div>
+      <div id="tour_control" class="flex flex-col space-y-4 text-3xl text-zinc-300 text-center">
+        <p data-tour-target="status"></p>
+        <button type="button" data-tour-target="undoButton" data-action="click->tour#undo" disabled>Undo</button>
+        <button type="button" data-action="click->tour#restart">Restart</button>
+        <%= form_with url: tours_path, method: :post, data: { tour_target: "saveForm" } do |f| %>
+          <%= f.submit "Save Tour", data: { tour_target: "saveButton" }, disabled: true %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
