@@ -20,12 +20,20 @@
         <p data-tour-target="status" class="h-7 flex items-center justify-center text-xl whitespace-nowrap">Choose a starting square</p>
         <div class="flex gap-4">
           <button type="button" data-tour-target="undoButton" data-action="click->tour#undo" disabled
-                  class="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 disabled:hover:bg-zinc-700 text-zinc-200 font-semibold text-xl px-6 py-2 rounded-lg transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed">
-            Undo
+                  title="Undo"
+                  class="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 disabled:hover:bg-zinc-700 text-zinc-200 w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+            </svg>
+            <span class="sr-only">Undo</span>
           </button>
           <button type="button" data-action="click->tour#restart"
-                  class="bg-accent hover:bg-accent-hover text-white font-semibold text-xl px-6 py-2 rounded-lg transition-colors duration-200 cursor-pointer">
-            Restart
+                  title="Restart"
+                  class="bg-accent hover:bg-accent-hover text-white w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/>
+            </svg>
+            <span class="sr-only">Restart</span>
           </button>
         </div>
       </div>
