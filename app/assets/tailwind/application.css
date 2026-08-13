@@ -31,11 +31,4 @@
   --color-accent-hover: #6ea23e;
 
   --font-title: "Poppins", ui-sans-serif, system-ui, sans-serif;
-
-  --animate-pop: pop 0.2s ease-out;
-}
-
-@keyframes pop {
-  0% { transform: scale(0.92); }
-  100% { transform: scale(1); }
 }
