@@ -46,12 +46,13 @@ export default class extends Controller {
     state.squares.forEach((view, i) => {
       const el = this.squareTargets[i]
       const interactive = view.legal ? "cursor-pointer hover:brightness-110 hover:scale-105" : ""
-      el.className = `w-10 h-10 sm:w-24 sm:h-24 flex items-center justify-center border border-gray-400 transition-colors duration-200 ease-out ${view.bgClass} ${interactive}`
+      const landing = view.current ? "animate-pop" : ""
+      el.className = `w-10 h-10 sm:w-24 sm:h-24 flex items-center justify-center border border-gray-400 transition-colors duration-200 ease-out ${view.bgClass} ${interactive} ${landing}`
       el.innerHTML = view.current ? KNIGHT_SVG : ""
     })
 
     const statusColor = state.statusVariant === "won" ? "text-board-legal" : state.statusVariant === "stuck" ? "text-board-visited" : ""
-    this.statusTarget.className = `min-h-14 flex items-center justify-center text-xl ${statusColor}`
+    this.statusTarget.className = `h-7 flex items-center justify-center text-xl whitespace-nowrap ${statusColor}`
     this.visitedCountTarget.textContent = state.visitedCount
     this.statusTarget.textContent = state.status
     this.undoButtonTarget.disabled = state.undoDisabled

@@ -14,7 +14,7 @@ export function attemptMove(game, notation) {
 
 export function renderState(game) {
   const statusVariant = game.won ? "won" : game.stuck ? "stuck" : null
-  const status = statusVariant === "won" ? "You won!" : statusVariant === "stuck" ? "Stuck — no legal moves left" : ""
+  const status = statusVariant === "won" ? "You won!" : statusVariant === "stuck" ? "Stuck!" : ""
   return {
     squares: boardView(game),
     visitedCount: game.visitedCount,
