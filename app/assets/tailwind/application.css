@@ -19,14 +19,19 @@
 @theme {
   /* Board palette — single source of truth for board_view.js and new.html.erb,
      which each independently render dark/light squares (JS re-render vs. the
-     server-rendered initial paint) and must stay in sync. --color-board-legal/visited
-     are also reused by the tours/_tour.html.erb status pills (Complete/Stuck). */
+     server-rendered initial paint) and must stay in sync. --color-board-legal
+     is also reused by the tours/_tour.html.erb Complete status pill. */
   --color-board-light: #d9d6bd;
   --color-board-dark: #5f7290;
   --color-board-current: #a8895f;
   --color-board-legal: #6bab8c;
   --color-board-visited: #bf7575;
   --color-board-stuck: #3a3633;
+
+  /* tours/_tour.html.erb's Incomplete status pill — deliberately not reusing
+     --color-board-visited (that's the in-play dead-end/trail red, a different
+     signal from "this saved tour just isn't 64 moves yet"). */
+  --color-status-incomplete: #d9b23c;
 
   --color-accent: #81b64c;
   --color-accent-hover: #6ea23e;

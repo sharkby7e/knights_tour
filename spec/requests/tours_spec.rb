@@ -17,16 +17,16 @@ RSpec.describe "Tours", type: :request do
       expect(doc.css("li").count).to eq(2)
     end
 
-    it "shows Complete for a 64-move tour and Stuck for a shorter one" do
+    it "shows Complete for a 64-move tour and Incomplete for a shorter one" do
       create(:tour, :complete)
-      stuck = create(:tour)
-      create(:move, tour: stuck, square: "a1", position: 1)
+      incomplete = create(:tour)
+      create(:move, tour: incomplete, square: "a1", position: 1)
 
       get tours_path
 
       doc = Nokogiri::HTML5.fragment(response.body)
-      expect(doc.text).to include("Complete")
-      expect(doc.text).to include("Stuck")
+      pill_texts = doc.css("li span").map { |el| el.text.strip }
+      expect(pill_texts).to include("Complete", "Incomplete")
     end
 
     it "links the wordmark home" do
