@@ -1,7 +1,7 @@
 # Progress
 
 - [x] 1. Seed a few example tours (complete + incomplete) for local/dev data
-- [ ] 2. `GET /tours` index route + controller + spec'd list view (status, move count, ordering)
+- [x] 2. `GET /tours` index route + controller + spec'd list view (status, move count, ordering)
 - [ ] 3. Visual pass: title bar + mini-board path-line cards, matching the prototyped design
 
 ---
@@ -39,6 +39,8 @@ Add `:index` to the existing `resources :tours, only: [ :create, :show ]` → `[
 **Spec first (red)**: `spec/requests/tours_spec.rb` — `GET /tours` is successful, renders one row per seeded tour, shows "Complete" for the 64-move ones and "Incomplete" for the others, newest-first ordering.
 
 **Verify**: spec suite green, `bin/rubocop`/`bin/brakeman` clean.
+
+**Done.** Ordering ended up keyed on `created_at` alone (ties are fine — no seeded data relies on stable tiebreaking yet). Added a `:complete` trait to the `:tour` factory (builds all 64 moves via `Square.all`) so specs needing a full tour don't hand-roll square lists — reused across the Complete/Incomplete and ordering specs.
 
 ### 3. Visual pass: title bar + mini-board path-line cards
 

@@ -1,6 +1,46 @@
 require "rails_helper"
 
 RSpec.describe "Tours", type: :request do
+  describe "GET /tours" do
+    it "works" do
+      get tours_path
+
+      expect(response).to be_successful
+    end
+
+    it "renders one row per tour" do
+      create_list(:tour, 3)
+
+      get tours_path
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.css("li").count).to eq(3)
+    end
+
+    it "shows Complete for a 64-move tour and Incomplete for a shorter one" do
+      create(:tour, :complete)
+      incomplete = create(:tour)
+      create(:move, tour: incomplete, square: "a1", position: 1)
+
+      get tours_path
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.text).to include("Complete")
+      expect(doc.text).to include("Incomplete")
+    end
+
+    it "orders tours newest first" do
+      older = create(:tour, created_at: 2.days.ago)
+      newer = create(:tour, created_at: 1.day.ago)
+
+      get tours_path
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      ids = doc.css("[data-tour-id]").map { |el| el["data-tour-id"] }
+      expect(ids).to eq([ newer.id.to_s, older.id.to_s ])
+    end
+  end
+
   describe "GET /" do
     it "does not create a tour" do
       expect { get root_path }.not_to change(Tour, :count)

@@ -1,0 +1,5 @@
+<ul>
+  <% @tours.each do |tour| %>
+    <li data-tour-id="<%= tour.id %>"><%= tour.moves.count == 64 ? "Complete" : "Incomplete" %></li>
+  <% end %>
+</ul>
