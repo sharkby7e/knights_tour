@@ -2,7 +2,7 @@
 
 - [x] 1. Seed a few example tours (complete + incomplete) for local/dev data
 - [x] 2. `GET /tours` index route + controller + spec'd list view (status, move count, ordering)
-- [ ] 3. Visual pass: title bar + mini-board path-line cards, matching the prototyped design
+- [x] 3. Visual pass: title bar + mini-board path-line cards, matching the prototyped design
 
 ---
 
@@ -15,12 +15,12 @@ Continuing from the dead-code cleanup (see history below): `ToursController#show
 The visual/interaction design was prototyped first as a Claude Artifact (iterated live with the user — colors, line thickness, the title bar, community framing, complete/stuck status) before writing this plan: https://claude.ai/code/artifact/5a3887bb-9358-415f-ba27-86f51ecae266. Key decisions carried over from that prototype:
 
 - **Not personalized** — this is a community index (anyone's saved tours), not a per-user "your tours" list. No auth/scoping exists yet anyway.
-- **Complete vs incomplete status**: derived purely from `moves.count == 64` — no reintroduced move-legality logic. A tour with fewer than 64 moves is labeled "Incomplete" (not "Stuck" — we can't cheaply verify a genuine dead-end without duplicating knight-move-legality logic, and that distinction doesn't matter yet since there's no in-progress-save feature to produce a merely-abandoned tour anyway).
-- **Vertical list**, not a grid — each row: a small board tracing the tour's full path-so-far as a line (thicker, dark green `#4f7a2e`, matching the accent family but darker so it doesn't compete with the "Complete" status pill's use of the same green), tour id, move count, status pill (green "Complete" / amber "Incomplete"), relative timestamp.
+- **Complete vs incomplete status**: derived purely from `moves.count == 64` — no reintroduced move-legality logic. **Reversed during step 3's live visual pass**: the shorter-than-64 label is "Stuck", not "Incomplete", even though we still can't cheaply verify a genuine dead-end (no legality logic exists here) — accepted as technically imprecise for now (a future Save Tour feature could produce a merely-abandoned tour that isn't really stuck). Worth revisiting if that distinction starts to matter.
+- **Grid of cards**, not the originally-planned vertical list — each card: a large square board (SVG, board fills most of the card) tracing the tour's full path as a line, tour id, move count, status pill, relative timestamp. Landed on 2 cards per page, side by side, after live iteration.
 - **Title bar**: brand wordmark (no icon — deferred, "we can design a new icon later") + "Play"/"Tours" nav. "Play" should point at `/` (the existing live game) but stays inert for now since only the index is being built this branch.
 - Visited-square color semantics from live play (red/green legal-move highlighting) were deliberately dropped for this read-only context — there's no legality signal to show, just history. Board colors reuse the app's real `--color-board-*`/`--color-accent`/`--font-title` tokens throughout, not new ones.
 
-Pagination ("3 per page" or similar) explicitly deferred — out of scope until there's enough real seed/saved data to make it matter.
+**Scope change**: pagination is back in scope, 3 per page — seeing the real card design live with 5 seeded tours made it obvious it needs it now, rather than waiting for more real data. Added the `pagy` gem (`Pagy::Backend` in `ApplicationController`, `Pagy::Frontend` in `ApplicationHelper`, `pagy_nav` in `index.html.erb`) rather than hand-rolling limit/offset. A responsive (1-per-page on mobile) variant was considered but explicitly deferred — the mobile index layout needs its own pass first; desktop (3 per page) is what's being built now.
 
 ## Plan
 
@@ -46,11 +46,23 @@ Add `:index` to the existing `resources :tours, only: [ :create, :show ]` → `[
 
 Port the settled Artifact design into real Tailwind v4 + ERB, reusing the tokens already established on `main` (`--color-board-*`, `--color-accent`/`--color-accent-hover`, `--font-title`) — no new tokens except whatever the status pill and path-line need (darker green `#4f7a2e` for the line; pill colors likely small enough to be inline-arbitrary Tailwind values rather than new named tokens, unless a second use shows up).
 
-- `app/views/tours/_titlebar.html.erb`: wordmark + inert "Play"/"Tours" nav, included at the top of `index.html.erb` only (not added to `new.html.erb`'s existing layout — out of scope for this branch).
+- `app/views/layouts/_titlebar.html.erb`: wordmark (links to `root_path`) + "Play"/"Tours" nav (links to `root_path`/`tours_path`, active tab styled via `current_page?`). **Scope change from the original plan**: rendered once from `layouts/application.html.erb` itself, above `yield`, so it's shared across every page (not just `index.html.erb`) — this makes Play↔Tours navigation feel like switching tabs within one shell rather than loading a new page, since Turbo Drive's page swap only touches the part below the titlebar. `new.html.erb`/`index.html.erb` keep their own content wrapper divs (the Stimulus root on the play page stays put) but no longer own the outer page-shell padding/background — that moves up to the layout.
 - Each tour row: an inline SVG (viewBox `0 0 100 100`, `vector-effect="non-scaling-stroke"` on the polyline so line thickness stays constant regardless of the small board's rendered size, matching the Artifact) tracing `move.square` centers in position order, over an 8×8 checker grid using the real `--color-board-light`/`--color-board-dark` tokens. Point-position math (`Square#x`/`#y` → SVG coordinate) is small enough to stay inline in the partial unless it turns out fiddly enough to warrant its own spec'd helper.
 - Status pill, move count, relative timestamp per the prototype.
 
 **Verify**: `bin/dev` manual pass (visual polish, same precedent as the board-visuals branch) — checker pattern, line rendering/thickness, pill colors, title bar, responsive at both breakpoints. `bin/rubocop` clean.
+
+**Done.** Landed noticeably further from the original one-paragraph plan than steps 1-2, after many rounds of live `bin/dev` iteration (same precedent as the board-visuals branch):
+
+- **Board partial extracted**: `app/views/tours/_board_path.html.erb` (checker grid + path + start/end dots, locals: `tour`) is reusable as-is for the future show/playback page — `_tour.html.erb` just renders it inside the card frame.
+- **Path line**: neon magenta (`#ff2ee0`) with a thin cyan (`#22d3ee`) outline for contrast against both square colors, plus a subtle `animate-pulse-line` opacity pulse (new `@keyframes`/`--animate-pulse-line` token). Start/end squares get small dots using the existing `--color-board-legal`/`--color-board-visited` tokens (green/red) rather than new colors. Landed here after live-iterating through the originally-planned dark green, then gold, then purple.
+- **Status pill**: label is "Stuck" not "Incomplete" (see the reversed decision above) — colors reuse `--color-board-legal` (Complete) / `--color-board-visited` (Stuck) to match the path's start/end dots, both with `text-zinc-950` for contrast. No new tokens ended up needed here after all.
+- **Cards are a 2-column grid**, large (board-primary, stats in a footer strip, status pill overlaid on the board), not the originally-planned vertical list of compact rows — reversed live once the compact version was on screen and felt too small.
+- **Pagination added** (see the scope-change note above) — `pagy` gem, 2 per page. `pagy_nav`'s generated markup is styled as button pills via a `.pagy-nav` component class in `application.css` (`@layer components`) keyed off Pagy's actual `aria-current="page"`/`aria-disabled="true"` attributes, not CSS classes.
+- **Play page** (`new.html.erb`) lost its own `<h1>A Knight's Tour</h1>` — redundant now that the titlebar wordmark is always visible above it. The play page's "current square" highlight (`--color-board-current`) was retuned alongside the card palette, landing on a muted amber (`#a8895f`), close to but not identical to its pre-branch value.
+- **Real bug found and fixed**: Tailwind's class scanner doesn't detect `bg-[#hex]` arbitrary-value classes when they're inside a Ruby ternary (`cond ? "bg-[#a]" : "bg-[#b]"`) — reproduced in isolation. Any one-off literal color needed inside a conditional in this app should become a named `@theme` token instead of an inline arbitrary value, not just for consistency but because the arbitrary-in-ternary form silently fails to compile.
+
+Also touched `Gemfile` (`pagy`), `app/controllers/application_controller.rb`/`app/helpers/application_helper.rb` (Pagy wiring), and `app/assets/tailwind/application.css` (`.pagy-nav` component, `--animate-pulse-line`, retuned `--color-board-current`).
 
 ---
 

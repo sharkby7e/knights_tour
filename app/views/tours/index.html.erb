@@ -1,5 +1,9 @@
-<ul>
-  <% @tours.each do |tour| %>
-    <li data-tour-id="<%= tour.id %>"><%= tour.moves.count == 64 ? "Complete" : "Incomplete" %></li>
-  <% end %>
-</ul>
+<div class="w-full max-w-7xl flex flex-col items-center">
+  <ul class="w-full grid grid-cols-1 sm:grid-cols-2 gap-10">
+    <%= render @tours %>
+  </ul>
+
+  <div class="mt-6 pagy-nav">
+    <%== pagy_nav(@pagy) %>
+  </div>
+</div>

@@ -9,24 +9,43 @@ RSpec.describe "Tours", type: :request do
     end
 
     it "renders one row per tour" do
-      create_list(:tour, 3)
+      create_list(:tour, 2)
 
       get tours_path
 
       doc = Nokogiri::HTML5.fragment(response.body)
-      expect(doc.css("li").count).to eq(3)
+      expect(doc.css("li").count).to eq(2)
     end
 
-    it "shows Complete for a 64-move tour and Incomplete for a shorter one" do
+    it "shows Complete for a 64-move tour and Stuck for a shorter one" do
       create(:tour, :complete)
-      incomplete = create(:tour)
-      create(:move, tour: incomplete, square: "a1", position: 1)
+      stuck = create(:tour)
+      create(:move, tour: stuck, square: "a1", position: 1)
 
       get tours_path
 
       doc = Nokogiri::HTML5.fragment(response.body)
       expect(doc.text).to include("Complete")
-      expect(doc.text).to include("Incomplete")
+      expect(doc.text).to include("Stuck")
+    end
+
+    it "links the wordmark home" do
+      get tours_path
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      link = doc.css("a").find { |a| a.text == "Knight's Tour" }
+      expect(link["href"]).to eq(root_path)
+    end
+
+    it "links the Play and Tours nav items, with Tours active" do
+      get tours_path
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      links = doc.css("a").index_by(&:text)
+      expect(links["Play"]["href"]).to eq(root_path)
+      expect(links["Tours"]["href"]).to eq(tours_path)
+      expect(links["Tours"]["class"]).to include("text-accent")
+      expect(links["Play"]["class"]).not_to include("text-accent")
     end
 
     it "orders tours newest first" do
@@ -53,6 +72,15 @@ RSpec.describe "Tours", type: :request do
       doc = Nokogiri::HTML5.fragment(response.body)
       expect(doc.at_css("[data-controller='tour']")).to be_present
       expect(doc.css("[data-square-notation]").count).to eq(64)
+    end
+
+    it "shows the title bar with Play active" do
+      get root_path
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      links = doc.css("a").index_by(&:text)
+      expect(links["Play"]["class"]).to include("text-accent")
+      expect(links["Tours"]["class"]).not_to include("text-accent")
     end
   end
 

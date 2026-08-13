@@ -19,10 +19,11 @@
 @theme {
   /* Board palette — single source of truth for board_view.js and new.html.erb,
      which each independently render dark/light squares (JS re-render vs. the
-     server-rendered initial paint) and must stay in sync. */
+     server-rendered initial paint) and must stay in sync. --color-board-legal/visited
+     are also reused by the tours/_tour.html.erb status pills (Complete/Stuck). */
   --color-board-light: #d9d6bd;
   --color-board-dark: #5f7290;
-  --color-board-current: #b8985f;
+  --color-board-current: #a8895f;
   --color-board-legal: #6bab8c;
   --color-board-visited: #bf7575;
   --color-board-stuck: #3a3633;
@@ -33,9 +34,42 @@
   --font-title: "Poppins", ui-sans-serif, system-ui, sans-serif;
 
   --animate-pop: pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-pulse-line: pulse-line 3s ease-in-out infinite;
 }
 
 @keyframes pop {
   0% { transform: scale(0.85); }
   100% { transform: scale(1); }
+}
+
+@keyframes pulse-line {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+@layer components {
+  /* Styles Pagy's generated <nav>/<a> markup (see pagy_nav in tours/index.html.erb) as button
+     pills. Pagy marks the active page with aria-current="page" and disabled prev/next/gaps with
+     aria-disabled="true" rather than CSS classes, so we key off those attributes. */
+  .pagy-nav nav {
+    @apply flex items-center gap-2;
+  }
+
+  .pagy-nav a {
+    @apply inline-flex h-9 min-w-9 items-center justify-center rounded-lg bg-zinc-700 px-3 text-sm font-medium text-zinc-300 transition-colors duration-150;
+  }
+
+  .pagy-nav a:hover {
+    @apply bg-zinc-600 text-white;
+  }
+
+  /* The current page carries both aria-current="page" and aria-disabled="true" (Pagy marks it
+     unclickable too), so the disabled rule excludes it rather than relying on source order. */
+  .pagy-nav a[aria-disabled="true"]:not([aria-current="page"]) {
+    @apply pointer-events-none bg-transparent opacity-40;
+  }
+
+  .pagy-nav a[aria-current="page"] {
+    @apply pointer-events-none bg-accent font-semibold text-zinc-950;
+  }
 }
