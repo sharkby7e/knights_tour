@@ -60,3 +60,7 @@ docker network rm knights_tour_net
 ## Deployment
 
 Deployed with [Kamal](https://kamal-deploy.org/) to a Hetzner Cloud VPS. See `config/deploy.yml`.
+
+## Credits
+
+The knight piece (`app/javascript/controllers/tour_controller.js`) and favicon derived from it are adapted from [Cburnett](https://en.wikipedia.org/wiki/User:Cburnett)'s chess piece set on [Wikimedia Commons](https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces), used and modified (recolored, simplified) under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
