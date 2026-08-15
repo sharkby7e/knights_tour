@@ -61,10 +61,6 @@ RSpec.describe "Tours", type: :request do
   end
 
   describe "GET /" do
-    it "does not create a tour" do
-      expect { get root_path }.not_to change(Tour, :count)
-    end
-
     it "renders the board skeleton with a Stimulus-controlled play area" do
       get root_path
 
@@ -95,14 +91,34 @@ RSpec.describe "Tours", type: :request do
   end
 
   describe "POST /tours" do
-    it "creates a new tour and redirects to root, leaving the old tour's moves intact" do
-      old_tour = create(:tour)
-      old_move = create(:move, tour: old_tour)
+    def post_tour(moves)
+      post tours_path, params: { moves: moves }.to_json, headers: { "Content-Type" => "application/json" }
+    end
 
-      expect { post tours_path }.to change(Tour, :count).by(1)
+    def error_messages
+      JSON.parse(response.body).values.flatten
+    end
 
-      expect(response).to redirect_to(root_path)
-      expect(old_move.reload).to be_persisted
+    it "creates a tour with the submitted moves in order and responds with a redirect_url to the new tour" do
+      expect { post_tour([ "e4", "f6", "d5" ]) }.to change(Tour, :count).by(1)
+
+      expect(response).to be_successful
+      expect(Tour.last.moves.order(:position).pluck(:square)).to eq([ "e4", "f6", "d5" ])
+      expect(JSON.parse(response.body)["redirect_url"]).to eq(tour_path(Tour.last))
+    end
+
+    it "rejects a move that is not a legal knight's-move and creates nothing" do
+      expect { post_tour([ "e4", "e5" ]) }.not_to change(Tour, :count)
+
+      expect(response.status).to eq(422)
+      expect(error_messages).to include("is not a legal knight's-move from the previous move")
+    end
+
+    it "rejects an empty moves array and creates nothing" do
+      expect { post_tour([]) }.not_to change(Tour, :count)
+
+      expect(response.status).to eq(422)
+      expect(error_messages).to include("can't be blank")
     end
   end
 end

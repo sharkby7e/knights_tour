@@ -10,13 +10,23 @@ class ToursController < ApplicationController
   def show; end
 
   def create
-    Tour.create!
-    redirect_to root_path
+    tour = Tour.new
+    create_params.each_with_index { |square, i| tour.moves.build(square:, position: i + 1) }
+
+    if tour.save(context: :save_tour)
+      render json: { redirect_url: tour_path(tour) }
+    else
+      render json: tour.errors, status: :unprocessable_entity
+    end
   end
 
   private
 
   def set_tour
     @tour = Tour.find(params[:id])
+  end
+
+  def create_params
+    params.permit(moves: []).fetch(:moves, [])
   end
 end
