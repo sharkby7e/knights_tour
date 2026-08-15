@@ -88,6 +88,28 @@ RSpec.describe "Tours", type: :request do
 
       expect(response).to be_successful
     end
+
+    it "shows the move count and a Complete pill for a finished tour" do
+      tour = create(:tour, :complete)
+
+      get tour_path(tour)
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.text).to include("64 moves")
+      expect(doc.text).to include("Complete")
+    end
+
+    it "shows an Incomplete pill and the move count for a partial tour" do
+      tour = create(:tour)
+      create(:move, tour:, position: 1, square: "a1")
+
+      get tour_path(tour)
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.text).to include("1 move")
+      expect(doc.text).to include("Incomplete")
+    end
+
   end
 
   describe "POST /tours" do
