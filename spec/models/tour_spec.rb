@@ -9,4 +9,8 @@ RSpec.describe Tour do
 
     expect(old_move.reload).to be_persisted
   end
+
+  it "is invalid in the :save_tour context with no moves" do
+    expect(build(:tour).valid?(:save_tour)).to be false
+  end
 end
