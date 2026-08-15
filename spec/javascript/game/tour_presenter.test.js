@@ -32,6 +32,19 @@ test("renderState enables undo once a move has been made", () => {
   assert.ok(!state.undoDisabled)
 })
 
+test("renderState disables save with no moves", () => {
+  const game = new KnightTourGame()
+  const state = renderState(game)
+  assert.ok(state.saveDisabled)
+})
+
+test("renderState enables save once a move has been made", () => {
+  const game = new KnightTourGame()
+  attemptMove(game, "a1")
+  const state = renderState(game)
+  assert.ok(!state.saveDisabled)
+})
+
 test("renderState reports won status and variant once all 64 squares are visited", () => {
   const game = new KnightTourGame()
   game.moves = Square.all()

@@ -1,0 +1,4 @@
+<div class="relative aspect-square w-full <%= local_assigns[:wrapper_class] %>">
+  <%= render "board_path", tour: tour %>
+  <%= yield if block_given? %>
+</div>

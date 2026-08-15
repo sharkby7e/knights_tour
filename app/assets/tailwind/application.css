@@ -57,7 +57,7 @@
      pills. Pagy marks the active page with aria-current="page" and disabled prev/next/gaps with
      aria-disabled="true" rather than CSS classes, so we key off those attributes. */
   .pagy-nav nav {
-    @apply flex items-center gap-2;
+    @apply flex flex-wrap items-center justify-center gap-2;
   }
 
   .pagy-nav a {
