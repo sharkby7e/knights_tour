@@ -20,7 +20,7 @@ No route changes needed — `resources :tours, only: [:index, :create, :show]` a
 - [x] 1. `Move`: legal-knight-delta-from-previous-move validation
 - [x] 2. `Tour`: reject an empty moves list via `on: :save_tour` validation context
 - [x] 3. `ToursController#create`: JSON save endpoint
-- [ ] 4. Extract shared `_status_pill` partial
+- [x] 4. Extract shared `_status_pill` partial
 - [ ] 5. `tours#show`: real playback page
 - [ ] 6. JS: `renderState` exposes `saveDisabled`
 - [ ] 7. JS: wire the Save button
