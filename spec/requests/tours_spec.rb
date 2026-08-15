@@ -109,7 +109,6 @@ RSpec.describe "Tours", type: :request do
       expect(doc.text).to include("1 move")
       expect(doc.text).to include("Incomplete")
     end
-
   end
 
   describe "POST /tours" do
