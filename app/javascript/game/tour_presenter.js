@@ -20,6 +20,7 @@ export function renderState(game) {
     visitedCount: game.visitedCount,
     status,
     statusVariant,
-    undoDisabled: game.visitedCount === 0
+    undoDisabled: game.visitedCount === 0,
+    saveDisabled: game.visitedCount === 0
   }
 }
