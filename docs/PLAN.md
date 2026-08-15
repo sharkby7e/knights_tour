@@ -23,7 +23,7 @@ No route changes needed — `resources :tours, only: [:index, :create, :show]` a
 - [x] 4. Extract shared `_status_pill` partial
 - [x] 5. `tours#show`: real playback page
 - [x] 6. JS: `renderState` exposes `saveDisabled`
-- [ ] 7. JS: wire the Save button
+- [x] 7. JS: wire the Save button
 
 # Plan
 

@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { Turbo } from "@hotwired/turbo-rails"
 import { KnightTourGame } from "#game/knight_tour_game"
 import { attemptMove, renderState } from "#game/tour_presenter"
 
@@ -19,7 +20,7 @@ const KNIGHT_SVG = `
 `.trim()
 
 export default class extends Controller {
-  static targets = [ "square", "visitedCount", "status", "undoButton" ]
+  static targets = [ "square", "visitedCount", "status", "undoButton", "saveButton" ]
 
   connect() {
     this.game = new KnightTourGame()
@@ -40,6 +41,25 @@ export default class extends Controller {
     this.render()
   }
 
+  async save() {
+    const response = await fetch("/tours", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: JSON.stringify({ moves: this.game.notationPath() })
+    })
+
+    if (!response.ok) {
+      this.statusTarget.textContent = "Couldn't save — try again."
+      return
+    }
+
+    const { redirect_url } = await response.json()
+    Turbo.visit(redirect_url)
+  }
+
   render() {
     const state = renderState(this.game)
 
@@ -56,5 +76,6 @@ export default class extends Controller {
     this.visitedCountTarget.textContent = state.visitedCount
     this.statusTarget.textContent = state.status
     this.undoButtonTarget.disabled = state.undoDisabled
+    this.saveButtonTarget.disabled = state.saveDisabled
   }
 }
