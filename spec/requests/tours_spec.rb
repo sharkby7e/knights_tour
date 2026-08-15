@@ -33,7 +33,7 @@ RSpec.describe "Tours", type: :request do
       get tours_path
 
       doc = Nokogiri::HTML5.fragment(response.body)
-      link = doc.css("a").find { |a| a.text == "Knight's Tour" }
+      link = doc.at_css("a.font-title")
       expect(link["href"]).to eq(root_path)
     end
 
