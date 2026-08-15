@@ -41,4 +41,27 @@ RSpec.describe Move do
 
     expect(other_tour_move).to be_valid
   end
+
+  it "rejects a move that is not a legal knight's-move from the previous move" do
+    tour = create(:tour)
+    create(:move, tour:, position: 1, square: "e4")
+    move = build(:move, tour:, position: 2, square: "e5")
+
+    expect(move).not_to be_valid
+  end
+
+  it "does not require the first move in a tour to be a knight's-move from anything" do
+    tour = create(:tour)
+    move = build(:move, tour:, position: 1, square: "a1")
+
+    expect(move).to be_valid
+  end
+
+  it "validates legality against an in-memory previous move that hasn't been saved yet" do
+    tour = Tour.new
+    tour.moves.build(square: "e4", position: 1)
+    second = tour.moves.build(square: "e5", position: 2)
+
+    expect(second).not_to be_valid
+  end
 end

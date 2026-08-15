@@ -17,7 +17,7 @@ No route changes needed — `resources :tours, only: [:index, :create, :show]` a
 
 # Progress
 
-- [ ] 1. `Move`: legal-knight-delta-from-previous-move validation
+- [x] 1. `Move`: legal-knight-delta-from-previous-move validation
 - [ ] 2. `Tour`: reject an empty moves list via `on: :save_tour` validation context
 - [ ] 3. `ToursController#create`: JSON save endpoint
 - [ ] 4. Extract shared `_status_pill` partial
