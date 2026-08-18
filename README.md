@@ -1,6 +1,19 @@
 # Knight's Tour
 
-A Rails app for playing the [Knight's Tour](https://en.wikipedia.org/wiki/Knight%27s_tour) puzzle: move a knight around a chessboard, visiting every square exactly once.
+**[Play it live →](https://sidquinsaat.com)**
+
+A Rails app for playing the [Knight's Tour](https://en.wikipedia.org/wiki/Knight%27s_tour) puzzle: move a knight around a chessboard, visiting every square exactly once. Finish, get stuck, or just wander — every attempt can be saved and shows up in the [community gallery](https://sidquinsaat.com/tours).
+
+![Knight's Tour board mid-game](docs/screenshot.png)
+
+## Why this exists
+
+This started as a rebuild of an older, messier version of the same app, and turned into a place to practice deliberate engineering:
+
+- **Play is entirely client-side.** Move legality, undo, and restart all run in JS with zero network round-trips per move. An earlier version routed every move through the server via a Turbo Frame — even with that in place, per-move latency (~250–400ms) never felt snappy, so the game logic moved to the browser instead.
+- **Server validation stays minimal on purpose.** Saving a tour re-checks each move is a legal knight's-move from the one before it, rather than reintroducing a full board-legality engine server-side. The client owns the play experience; the server just keeps the saved data honest.
+- **Built one small, verified step at a time.** Each feature branch is planned in [`docs/PLAN.md`](docs/PLAN.md) — checked into git, not a scratch doc — and built red → green → commit per step, so work is resumable from the plan and `git log` alone even across sessions.
+- **Architecture changed when the tradeoffs did.** The game logic went through three real rewrites (Turbo Streams → a single Turbo Frame → fully client-side) — `docs/PLAN.md`'s history section documents why each one got replaced.
 
 ## Local development
 
