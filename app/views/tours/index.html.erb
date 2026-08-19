@@ -1,5 +1,13 @@
-<div class="w-full max-w-7xl flex flex-col items-center">
-  <ul class="w-full grid grid-cols-1 sm:grid-cols-2 gap-10">
+<div class="w-full max-w-7xl min-[104rem]:max-w-[104rem] flex flex-col items-center self-start">
+  <nav class="pill-filters inline-flex w-full sm:w-auto gap-1 rounded-full border border-zinc-700/60 bg-zinc-900/60 p-1 mb-6">
+    <% { nil => "All", "complete" => "Complete", "incomplete" => "Incomplete" }.each do |status, label| %>
+      <%= link_to label, status ? tours_path(status:) : tours_path,
+            class: "flex-1 sm:flex-none rounded-full px-4 py-1.5 text-sm font-semibold text-center transition-colors duration-150 " +
+                   (@status == status ? "bg-accent text-zinc-950" : "text-zinc-400 hover:text-zinc-100") %>
+    <% end %>
+  </nav>
+
+  <ul class="w-full grid grid-cols-1 min-[70rem]:grid-cols-[repeat(2,32rem)] min-[70rem]:justify-center gap-10 min-[104rem]:grid-cols-[repeat(3,32rem)]">
     <%= render @tours %>
   </ul>
 
