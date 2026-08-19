@@ -1,4 +1,4 @@
-<div class="w-full max-w-7xl min-[104rem]:max-w-[104rem] flex flex-col items-center">
+<div class="w-full max-w-7xl min-[104rem]:max-w-[104rem] flex flex-col items-center self-start">
   <nav class="pill-filters inline-flex w-full sm:w-auto gap-1 rounded-full border border-zinc-700/60 bg-zinc-900/60 p-1 mb-6">
     <% { nil => "All", "complete" => "Complete", "incomplete" => "Incomplete" }.each do |status, label| %>
       <%= link_to label, status ? tours_path(status:) : tours_path,
