@@ -1,11 +1,11 @@
 # Context
 
-The `/tours` index (`ToursController#index`, `app/views/tours/index.html.erb`) currently renders one flat list of every saved tour, newest first, 2 per page (`pagy(..., limit: 2)`), in a grid capped at `sm:grid-cols-2` — so even on a wide desktop screen it never shows more than two cards per row. There is also no way to narrow the list to just Complete or just Incomplete tours; the Complete/Incomplete pill (`tour.moves.size == 64`) is purely a per-card label today.
+The `/tours` index (`ToursController#index`, `app/views/tours/index.html.erb`) renders one flat list of every saved tour, newest first, in a responsive grid (1 column mobile, 2 at `min-[70rem]`, 3 at `min-[104rem]`, 6 per page via `pagy(..., limit: 6)` — steps 1–2 below, already shipped). There is also no way to narrow the list to just Complete or just Incomplete tours; the Complete/Incomplete pill (`tour.moves.size == 64`) is purely a per-card label today.
 
 This plan adds two independent, small changes to that same page:
 
-- **A wider desktop grid.** `lg:grid-cols-4` on top of the existing `grid-cols-1 sm:grid-cols-2` (mobile/tablet unchanged). Paired with bumping the pagy page size from 2 to 8, so a full desktop page fills two 4-wide rows instead of leaving the grid mostly empty.
-- **Filtering by status.** A `?status=complete` / `?status=incomplete` query param on `GET /tours`, driven by two new `Tour` scopes (`Tour.complete`, `Tour.incomplete`) built as `WHERE (subquery move count) = / < 64` rather than `GROUP BY`/`HAVING` — a grouped relation's `.count` returns a Hash instead of an Integer, which breaks pagy's own count query. A filter row above the grid (`All` / `Complete` / `Incomplete`) reuses the existing titlebar nav's active-link pattern (`current_page?` → `text-accent font-semibold` vs `text-zinc-300`) rather than inventing a new tab/pill component.
+- **A wider, responsive grid.** Done — see steps 1–2.
+- **Filtering by status.** A `?status=complete` / `?status=incomplete` query param on `GET /tours`, driven by two new `Tour` scopes (`Tour.complete`, `Tour.incomplete`) built as `WHERE (subquery move count) = / < 64` rather than `GROUP BY`/`HAVING` — a grouped relation's `.count` returns a Hash instead of an Integer, which breaks pagy's own count query. A filter row above the grid (`All` / `Complete` / `Incomplete`) is styled as a segmented pill track — prototyped and picked over a plain text-link nav and over a semantic-colored-pill alternative (see step 5).
 
 No migrations, no JS, no route changes — `resources :tours, only: [:index, :create, :show]` and the existing `Tour`/`Move` schema already cover this.
 
@@ -13,40 +13,32 @@ No migrations, no JS, no route changes — `resources :tours, only: [:index, :cr
 
 - [x] 1. Desktop 4-column grid (`lg:grid-cols-4`)
 - [x] 2. Resize pagination: pagy `limit` 2 → 8
-- [ ] 3. `Tour.complete` / `Tour.incomplete` scopes
-- [ ] 4. `ToursController#index` filters by `params[:status]`
-- [ ] 5. Filter row UI (All / Complete / Incomplete links)
+- [x] 3. `Tour.complete` / `Tour.incomplete` scopes
+- [x] 4. `ToursController#index` filters by `params[:status]`
+- [x] 5. Filter row UI (All / Complete / Incomplete segmented pills)
 
 # Plan
 
-### 1. Desktop 4-column grid (`lg:grid-cols-4`)
+### 1. Responsive grid — shipped
 
-`app/views/tours/index.html.erb`: the `<ul>`'s class goes from `grid grid-cols-1 sm:grid-cols-2 gap-10` to `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10`. Mobile (1-col) and tablet (2-col) behavior is unchanged; only the `lg:` (1024px+) breakpoint changes.
+Landed as `grid-cols-1 min-[70rem]:grid-cols-[repeat(2,32rem)] min-[70rem]:justify-center gap-10 min-[104rem]:grid-cols-[repeat(3,32rem)]` (fixed-width `32rem` columns rather than a fractional `lg:grid-cols-N`, so cards stay a consistent size and the grid re-centers instead of stretching). See `5005051`.
 
-**Spec first (red)** — add to the existing `describe "GET /tours"` block in `spec/requests/tours_spec.rb`:
-- `"lays out the grid at 4 columns on desktop"` — `get tours_path`, `doc.at_css("ul")["class"]` includes `"lg:grid-cols-4"`.
+### 2. Resize pagination — shipped
 
-**Verify**: `bundle exec rspec spec/requests/tours_spec.rb` green; `bin/rubocop` clean; `bin/dev` visual check at a desktop width (4 cards/row) and confirm mobile/tablet are unchanged.
+`pagy(Tour.includes(:moves).order(created_at: :desc), limit: 6)` — 6 rather than the drafted 8, sized to the fixed-column grid (2 rows of 3 at the widest breakpoint). See `0563092` / `5005051`.
 
-### 2. Resize pagination: pagy `limit` 2 → 8
+### 3. `Tour.complete` / `Tour.incomplete` scopes — shipped
 
-`app/controllers/tours_controller.rb`: `pagy(Tour.includes(:moves).order(created_at: :desc), limit: 2)` → `limit: 8`. Purely a constant change tied to step 1 — 8 fills exactly two rows of 4 on desktop (and 4 rows of 2 on tablet, 8 rows of 1 on mobile).
-
-**Spec first (red)** — add to `spec/requests/tours_spec.rb`:
-- `"paginates at 8 tours per page"` — `create_list(:tour, 9)`, `get tours_path`, `doc.css("li").count == 8`.
-
-**Verify**: `bundle exec rspec spec/requests/tours_spec.rb` green; `bin/rubocop` clean.
-
-### 3. `Tour.complete` / `Tour.incomplete` scopes
-
-`app/models/tour.rb`:
+`app/models/tour.rb`, built from AR/Arel rather than a raw SQL string:
 ```ruby
-MOVE_COUNT_SQL = "(SELECT COUNT(*) FROM moves WHERE moves.tour_id = tours.id)"
+FULL_TOUR_LENGTH = 64
 
-scope :complete, -> { where("#{MOVE_COUNT_SQL} = 64") }
-scope :incomplete, -> { where("#{MOVE_COUNT_SQL} < 64") }
+scope :complete, -> {
+  where(id: Move.group(:tour_id).having(Move.arel_table[:id].count.eq(FULL_TOUR_LENGTH)).select(:tour_id))
+}
+scope :incomplete, -> { where.not(id: complete) }
 ```
-A correlated subquery in `WHERE`, not `GROUP BY`/`HAVING` — keeps the relation a plain non-grouped `SELECT`, so pagy's own `.count` call on it still returns a plain Integer. Covers zero-move tours under `incomplete` for free (`0 < 64`).
+`complete`'s subquery groups `moves`, not `tours` — the outer `Tour.where(id: …)` stays a plain non-grouped `SELECT`, so pagy's own `.count` call on it still returns a plain Integer. `incomplete` is just "not complete" (`where.not`), which covers zero-move tours for free since they never appear in the grouped subquery at all. `FULL_TOUR_LENGTH` is a deliberate seam for the deferred variable-board-size refactor — see `docs/` history / memory on that — it should eventually derive from board width × height rather than stay a literal `64`.
 
 **Spec first (red)** — add to `spec/models/tour_spec.rb`:
 - `"Tour.complete returns only 64-move tours"` — `complete = create(:tour, :complete)`; `create(:tour)` (0 moves) → `Tour.complete` → `to eq([complete])`.
@@ -54,17 +46,17 @@ A correlated subquery in `WHERE`, not `GROUP BY`/`HAVING` — keeps the relation
 
 **Verify**: `bundle exec rspec spec/models/tour_spec.rb` green; `bin/rubocop` clean.
 
-### 4. `ToursController#index` filters by `params[:status]`
+### 4. `ToursController#index` filters by `params[:status]` — shipped
 
 ```ruby
 def index
-  @status = params[:status] in "complete" | "incomplete" ? params[:status] : nil
+  @status = (params[:status] in "complete" | "incomplete") ? params[:status] : nil
   scope = Tour.includes(:moves).order(created_at: :desc)
   scope = scope.public_send(@status) if @status
-  @pagy, @tours = pagy(scope, limit: 8)
+  @pagy, @tours = pagy(scope, limit: 6)
 end
 ```
-Anything other than exactly `"complete"` or `"incomplete"` (missing, blank, garbage) falls back to the unfiltered list — no 500s on a bad query string.
+Anything other than exactly `"complete"` or `"incomplete"` (missing, blank, garbage) falls back to the unfiltered list — no 500s on a bad query string. Note the parens around the `in` pattern-match expression: `x in pattern ? a : b` is a syntax error (the `?`/`:` get parsed as part of the pattern), so the boolean has to be parenthesized before the ternary can apply to it.
 
 **Spec first (red)** — add to `spec/requests/tours_spec.rb`:
 - `"filters to only Complete tours when status=complete"` — one `:complete` tour, one plain tour → `get tours_path(status: "complete")` → one `li`, pill text `"Complete"`.
@@ -73,21 +65,26 @@ Anything other than exactly `"complete"` or `"incomplete"` (missing, blank, garb
 
 **Verify**: `bundle exec rspec spec/requests/tours_spec.rb` green; `bin/rubocop` clean.
 
-### 5. Filter row UI (All / Complete / Incomplete links)
+### 5. Filter row UI (All / Complete / Incomplete segmented pills) — shipped
 
-New row above the `<ul>` in `app/views/tours/index.html.erb`, mirroring `_titlebar.html.erb`'s nav-link active-state pattern:
+Prototyped two directions as an artifact (desktop + mobile mockups of each) before coding: **A**, three separate pills where the active color previews the status color it filters to (borrowing `bg-board-legal`/`bg-status-incomplete` directly); and **B**, a single segmented pill track — one `bg-zinc-900/60` rounded-full container, accent-filled active segment — mirroring the existing pagy pagination pills (`.pagy-nav a[aria-current="page"]` → `bg-accent font-semibold text-zinc-950`). **B was picked**: it doesn't compete visually with the status-color pills already on the cards below it, and it extends full-width on mobile for a bigger tap target rather than stacking three separate touch targets.
+
+New row above the `<ul>` in `app/views/tours/index.html.erb`, `nav.pill-filters` (the class exists so the spec can scope to it, since the titlebar also has `<nav>`/`<a>` elements):
 ```erb
-<nav class="flex gap-6 text-lg mb-6">
-  <%= link_to "All", tours_path, class: @status.nil? ? "text-accent font-semibold" : "text-zinc-300" %>
-  <%= link_to "Complete", tours_path(status: "complete"), class: @status == "complete" ? "text-accent font-semibold" : "text-zinc-300" %>
-  <%= link_to "Incomplete", tours_path(status: "incomplete"), class: @status == "incomplete" ? "text-accent font-semibold" : "text-zinc-300" %>
+<nav class="pill-filters inline-flex w-full sm:w-auto gap-1 rounded-full border border-zinc-700/60 bg-zinc-900/60 p-1 mb-6">
+  <% { nil => "All", "complete" => "Complete", "incomplete" => "Incomplete" }.each do |status, label| %>
+    <%= link_to label, status ? tours_path(status:) : tours_path,
+          class: "flex-1 sm:flex-none rounded-full px-4 py-1.5 text-sm font-semibold text-center transition-colors duration-150 " +
+                 (@status == status ? "bg-accent text-zinc-950" : "text-zinc-400 hover:text-zinc-100") %>
+  <% end %>
 </nav>
 ```
+`flex-1 sm:flex-none` is what makes the segments equal-width (full-bleed) on mobile and shrink-to-content on desktop, matching the two device mockups.
 
-**Spec first (red)** — add to `spec/requests/tours_spec.rb`:
-- `"highlights All by default and Complete/Incomplete when filtered"` — `get tours_path` → the `"All"` link has class including `"text-accent"`, `"Complete"`/`"Incomplete"` do not; `get tours_path(status: "complete")` → the `"Complete"` link has `"text-accent"`, `"All"` does not.
+**Spec first (red)** — added to `spec/requests/tours_spec.rb`:
+- `"highlights All by default and Complete/Incomplete when filtered"` — `get tours_path` → within `nav.pill-filters`, the `"All"` link has class including `"bg-accent"`, `"Complete"`/`"Incomplete"` do not; `get tours_path(status: "complete")` → `"Complete"` has `"bg-accent"`, `"All"` does not.
 
-**Verify**: `bundle exec rspec spec/requests/tours_spec.rb` green; `bin/rubocop` clean; `bin/dev` visual pass clicking All/Complete/Incomplete.
+**Verify**: `bundle exec rspec` (43 examples) green; `bin/rubocop` clean. Still worth a manual `bin/dev` visual pass clicking All/Complete/Incomplete at both mobile and desktop widths — not covered by the request spec.
 
 ---
 

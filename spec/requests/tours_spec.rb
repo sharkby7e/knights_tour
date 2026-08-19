@@ -48,6 +48,55 @@ RSpec.describe "Tours", type: :request do
       expect(links["Play"]["class"]).not_to include("text-accent")
     end
 
+    it "filters to only Complete tours when status=complete" do
+      create(:tour, :complete)
+      create(:tour)
+
+      get tours_path(status: "complete")
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.css("li").count).to eq(1)
+      expect(doc.css("li span").map { |el| el.text.strip }).to include("Complete")
+    end
+
+    it "filters to only Incomplete tours when status=incomplete" do
+      create(:tour, :complete)
+      create(:tour)
+
+      get tours_path(status: "incomplete")
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.css("li").count).to eq(1)
+      expect(doc.css("li span").map { |el| el.text.strip }).to include("Incomplete")
+    end
+
+    it "ignores an invalid status value and shows everything" do
+      create(:tour, :complete)
+      create(:tour)
+
+      get tours_path(status: "bogus")
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.css("li").count).to eq(2)
+    end
+
+    it "highlights All by default and Complete/Incomplete when filtered" do
+      get tours_path
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      filter_links = doc.at_css("nav.pill-filters").css("a").index_by(&:text)
+      expect(filter_links["All"]["class"]).to include("bg-accent")
+      expect(filter_links["Complete"]["class"]).not_to include("bg-accent")
+      expect(filter_links["Incomplete"]["class"]).not_to include("bg-accent")
+
+      get tours_path(status: "complete")
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      filter_links = doc.at_css("nav.pill-filters").css("a").index_by(&:text)
+      expect(filter_links["Complete"]["class"]).to include("bg-accent")
+      expect(filter_links["All"]["class"]).not_to include("bg-accent")
+    end
+
     it "orders tours newest first" do
       older = create(:tour, created_at: 2.days.ago)
       newer = create(:tour, created_at: 1.day.ago)

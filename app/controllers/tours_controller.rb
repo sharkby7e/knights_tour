@@ -2,7 +2,10 @@ class ToursController < ApplicationController
   before_action :set_tour, only: [ :show ]
 
   def index
-    @pagy, @tours = pagy(Tour.includes(:moves).order(created_at: :desc), limit: 6)
+    @status = (params[:status] in "complete" | "incomplete") ? params[:status] : nil
+    scope = Tour.includes(:moves).order(created_at: :desc)
+    scope = scope.public_send(@status) if @status
+    @pagy, @tours = pagy(scope, limit: 6)
   end
 
   def new; end
