@@ -13,7 +13,7 @@ Decisions made with the user before planning this:
 
 - [x] 1. Extract `KNIGHT_SVG` into a shared module
 - [x] 2. Brighten/strengthen the path-line pulse
-- [ ] 3. `TourPlayer` — step-cursor over an ordered list of squares
+- [x] 3. `TourPlayer` — step-cursor over an ordered list of squares
 - [ ] 4. `ticker_view.js` — pure view-model for ticker tiles
 - [ ] 5. `playback_view.js` — pure view-model for the full playback board/panel
 - [ ] 6. Shared `_move_ticker.html.erb` partial
@@ -32,23 +32,13 @@ Pure refactor, no behavior change. Moved the inline `KNIGHT_SVG` template litera
 
 `_board_path.html.erb`'s base polyline is cyan and wider (`stroke-width="4.5"`); the pulsing magenta polyline on top of it is narrower (`3.5`) — so cyan is only ever meant to show as a thin rim around the magenta, never across the full stroke. Bumped the cyan hex from `#22d3ee` to a brighter `#3df3ff`. In `app/assets/tailwind/application.css`, first pass dropped the pulse's opacity floor to `0.3` and sped the cycle up to `1.4s` — too strong: transparent enough for the cyan underneath to show across its full width instead of just the rim, and too frantic. Settled on a `0.65` opacity floor (still a punchier dip than the original `0.85`) at the original `3s` cycle speed — stronger without over-exposing the cyan or feeling rushed. Confirmed visually via `bin/dev`. No spec (pure CSS/color tweak).
 
-### 3. `TourPlayer` — step-cursor over an ordered list of squares
+### 3. `TourPlayer` — step-cursor over an ordered list of squares — shipped
 
-New `app/javascript/game/tour_player.js`. Wraps a fixed `Square[]` (the tour's moves, already validated/persisted — no legality checking needed, unlike `KnightTourGame`) with a `step` cursor from `0` to `total`:
-- `total`, `step`
-- `current` — the `Square` at `step - 1`, or `null` at step 0
-- `visited(square)` — true if square is among the first `step` squares
-- `atStart`, `atEnd`
-- `goTo(n)` — clamps to `[0, total]`
-- `notations` — full ordered notation list (for the ticker)
+`app/javascript/game/tour_player.js`. Wraps a fixed `Square[]` (the tour's moves, already validated/persisted — no legality checking needed, unlike `KnightTourGame`) with a `step` cursor from `0` to `total`: `total`, `step`, `current` (the `Square` at `step - 1`, or `null` at step 0), `visited(square)`, `atStart`/`atEnd`, `goTo(n)` (clamps to `[0, total]`), `notations` (full ordered notation list, for the ticker).
 
-**Spec first (red)** — `spec/javascript/game/tour_player.test.js`:
-- constructing with a square list sets `total` and starts at a given step
-- `goTo` clamps below 0 and above total
-- `current`/`visited` reflect the cursor correctly at start, mid-tour, and end
-- `atStart`/`atEnd` flip correctly at the boundaries
+**Spec** (kept to essentials per this repo's minimal-JS-testing convention, not a boundary-by-boundary matrix) — `spec/javascript/game/tour_player.test.js`: `current`/`visited` reflect the step cursor mid-tour; `goTo` clamps at both ends and flips `atStart`/`atEnd` accordingly.
 
-**Verify**: `node --test` red → implement → green.
+**Verify**: `node --test` red (module not found) → implement → green (27 examples). `bundle exec rspec` (43) and `bin/rubocop` stayed green throughout — no Ruby/Rails touched by this step.
 
 ### 4. `ticker_view.js` — pure view-model for ticker tiles
 
