@@ -1,93 +1,154 @@
 # Context
 
-The `/tours` index (`ToursController#index`, `app/views/tours/index.html.erb`) renders one flat list of every saved tour, newest first, in a responsive grid (1 column mobile, 2 at `min-[70rem]`, 3 at `min-[104rem]`, 6 per page via `pagy(..., limit: 6)` — steps 1–2 below, already shipped). There is also no way to narrow the list to just Complete or just Incomplete tours; the Complete/Incomplete pill (`tour.moves.size == 64`) is purely a per-card label today.
+`tours#show` (`app/views/tours/show.html.erb`) is currently a static page: a full path drawn all at once over the board (`_board.html.erb` + `_board_path.html.erb`, shared with the index cards), a move count, and a status pill. There's no way to watch a saved tour unfold move by move.
 
-This plan adds two independent, small changes to that same page:
+A design prototype for this was built as a Claude artifact ("Tour Playback") and reviewed with the user. It mocks a scrubber, transport buttons (start/prev/play-pause/next/end), a sliding "moves ticker" that keeps the current move centered and is click-to-seek, a speed toggle, and a path-line show/hide toggle. The mockup also included two other views (a redesigned tours index and a live-play redesign) — **those are out of scope here**; only the interactive show/playback page and one small piece of the live `/` play page change in this plan.
 
-- **A wider, responsive grid.** Done — see steps 1–2.
-- **Filtering by status.** A `?status=complete` / `?status=incomplete` query param on `GET /tours`, driven by two new `Tour` scopes (`Tour.complete`, `Tour.incomplete`) built as `WHERE (subquery move count) = / < 64` rather than `GROUP BY`/`HAVING` — a grouped relation's `.count` returns a Hash instead of an Integer, which breaks pagy's own count query. A filter row above the grid (`All` / `Complete` / `Incomplete`) is styled as a segmented pill track — prototyped and picked over a plain text-link nav and over a semantic-colored-pill alternative (see step 5).
-
-No migrations, no JS, no route changes — `resources :tours, only: [:index, :create, :show]` and the existing `Tour`/`Move` schema already cover this.
+Decisions made with the user before planning this:
+- **Scope**: `tours#show` gets the full playback UI (scrubber, transport, ticker+count). The live `/` play page (`app/views/tours/new.html.erb`, driven by `tour_controller.js`) gets *only* its "Visited Squares" box swapped for the same ticker+count combo — no other changes there.
+- **Initial state**: opening a saved tour's show page starts **fully drawn at the end** (matches what's shipped today), not empty at step 0 like the mockup. Scrubbing/rewinding from there is how you replay it.
+- **Path styling**: keep the already-shipped animated cyan/magenta pulsing path line (`_board_path.html.erb`, also used on index cards) rather than the mockup's flat muted-green line — but make it more prominent: brighter cyan, stronger pulse.
 
 # Progress
 
-- [x] 1. Desktop 4-column grid (`lg:grid-cols-4`)
-- [x] 2. Resize pagination: pagy `limit` 2 → 8
-- [x] 3. `Tour.complete` / `Tour.incomplete` scopes
-- [x] 4. `ToursController#index` filters by `params[:status]`
-- [x] 5. Filter row UI (All / Complete / Incomplete segmented pills)
+- [x] 1. Extract `KNIGHT_SVG` into a shared module
+- [ ] 2. Brighten/strengthen the path-line pulse
+- [ ] 3. `TourPlayer` — step-cursor over an ordered list of squares
+- [ ] 4. `ticker_view.js` — pure view-model for ticker tiles
+- [ ] 5. `playback_view.js` — pure view-model for the full playback board/panel
+- [ ] 6. Shared `_move_ticker.html.erb` partial
+- [ ] 7. New CSS components for transport/scrubber/ticker/speed/toggle
+- [ ] 8. `tour_playback_controller.js` + new `show.html.erb`
+- [ ] 9. Wire ticker+count into the live `/` play page
+- [ ] 10. Manual QA pass (`bin/dev`)
 
 # Plan
 
-### 1. Responsive grid — shipped
+### 1. Extract `KNIGHT_SVG` into a shared module — shipped
 
-Landed as `grid-cols-1 min-[70rem]:grid-cols-[repeat(2,32rem)] min-[70rem]:justify-center gap-10 min-[104rem]:grid-cols-[repeat(3,32rem)]` (fixed-width `32rem` columns rather than a fractional `lg:grid-cols-N`, so cards stay a consistent size and the grid re-centers instead of stretching). See `5005051`.
+Pure refactor, no behavior change. Moved the inline `KNIGHT_SVG` template literal out of `app/javascript/controllers/tour_controller.js` into `app/javascript/game/knight_svg.js`, exporting it; `tour_controller.js` imports it. `tour_playback_controller.js` (step 8) will need the same SVG, so this avoids a second copy. No new spec — existing `node --test` (25 examples) and `bundle exec rspec` (43 examples) stayed green throughout, proving no regression. `pin_all_from "app/javascript/game", under: "#game"` in `config/importmap.rb` already covers new files in that directory, so no importmap changes were needed. See `4b23b9d`.
 
-### 2. Resize pagination — shipped
+### 2. Brighten/strengthen the path-line pulse
 
-`pagy(Tour.includes(:moves).order(created_at: :desc), limit: 6)` — 6 rather than the drafted 8, sized to the fixed-column grid (2 rows of 3 at the widest breakpoint). See `0563092` / `5005051`.
+In `_board_path.html.erb`, bump the hardcoded `stroke="#22d3ee"` to a brighter cyan. In `app/assets/tailwind/application.css`, strengthen `@keyframes pulse-line` (deeper opacity swing and/or faster cycle than the current `3s`, `1 ↔ 0.85`) so the pulse reads clearly rather than subtly. This affects both index cards and the show page (both already use `_board_path.html.erb`), which is what was agreed.
 
-### 3. `Tour.complete` / `Tour.incomplete` scopes — shipped
+**Verify**: visual only — `bin/dev`, eyeball an index card and a show page. No spec (pure CSS/color tweak).
 
-`app/models/tour.rb`, built from AR/Arel rather than a raw SQL string:
-```ruby
-FULL_TOUR_LENGTH = 64
+### 3. `TourPlayer` — step-cursor over an ordered list of squares
 
-scope :complete, -> {
-  where(id: Move.group(:tour_id).having(Move.arel_table[:id].count.eq(FULL_TOUR_LENGTH)).select(:tour_id))
-}
-scope :incomplete, -> { where.not(id: complete) }
-```
-`complete`'s subquery groups `moves`, not `tours` — the outer `Tour.where(id: …)` stays a plain non-grouped `SELECT`, so pagy's own `.count` call on it still returns a plain Integer. `incomplete` is just "not complete" (`where.not`), which covers zero-move tours for free since they never appear in the grouped subquery at all. `FULL_TOUR_LENGTH` is a deliberate seam for the deferred variable-board-size refactor — see `docs/` history / memory on that — it should eventually derive from board width × height rather than stay a literal `64`.
+New `app/javascript/game/tour_player.js`. Wraps a fixed `Square[]` (the tour's moves, already validated/persisted — no legality checking needed, unlike `KnightTourGame`) with a `step` cursor from `0` to `total`:
+- `total`, `step`
+- `current` — the `Square` at `step - 1`, or `null` at step 0
+- `visited(square)` — true if square is among the first `step` squares
+- `atStart`, `atEnd`
+- `goTo(n)` — clamps to `[0, total]`
+- `notations` — full ordered notation list (for the ticker)
 
-**Spec first (red)** — add to `spec/models/tour_spec.rb`:
-- `"Tour.complete returns only 64-move tours"` — `complete = create(:tour, :complete)`; `create(:tour)` (0 moves) → `Tour.complete` → `to eq([complete])`.
-- `"Tour.incomplete returns tours with fewer than 64 moves, including zero-move tours"` — `create(:tour, :complete)`; `partial = create(:tour); create(:move, tour: partial, square: "a1", position: 1)`; `empty = create(:tour)` → `Tour.incomplete` → `to contain_exactly(partial, empty)`.
+**Spec first (red)** — `spec/javascript/game/tour_player.test.js`:
+- constructing with a square list sets `total` and starts at a given step
+- `goTo` clamps below 0 and above total
+- `current`/`visited` reflect the cursor correctly at start, mid-tour, and end
+- `atStart`/`atEnd` flip correctly at the boundaries
 
-**Verify**: `bundle exec rspec spec/models/tour_spec.rb` green; `bin/rubocop` clean.
+**Verify**: `node --test` red → implement → green.
 
-### 4. `ToursController#index` filters by `params[:status]` — shipped
+### 4. `ticker_view.js` — pure view-model for ticker tiles
 
-```ruby
-def index
-  @status = (params[:status] in "complete" | "incomplete") ? params[:status] : nil
-  scope = Tour.includes(:moves).order(created_at: :desc)
-  scope = scope.complete if @status == "complete"
-  scope = scope.incomplete if @status == "incomplete"
-  @pagy, @tours = pagy(scope, limit: 6)
-end
-```
-Anything other than exactly `"complete"` or `"incomplete"` (missing, blank, garbage) falls back to the unfiltered list — no 500s on a bad query string. Note the parens around the `in` pattern-match expression: `x in pattern ? a : b` is a syntax error (the `?`/`:` get parsed as part of the pattern), so the boolean has to be parenthesized before the ternary can apply to it.
+New `app/javascript/game/ticker_view.js`, e.g. `tickerView(notations, currentIndex)` → array of `{ notation, current }`. Shared by both the show page's ticker (click-to-seek, `currentIndex` can be mid-array) and the live-play ticker (passive, `currentIndex` always the last tile).
 
-Originally dispatched with `scope.public_send(@status)`, which is exactly as safe here (`@status` is already constrained above) but Brakeman's static analysis can't see that guarantee and flags/fails CI on any `params`-derived value reaching `public_send`/`send`. Two independent `if @status == ...` reassignments read as more idiomatic Rails than a `case` that reassigns `scope` through itself, and only one line can ever fire.
+**Spec first (red)** — `spec/javascript/game/ticker_view.test.js`: empty list; marks the right tile `current`; no tile marked current when index is `-1` (pre-game state on the play page).
 
-**Spec first (red)** — add to `spec/requests/tours_spec.rb`:
-- `"filters to only Complete tours when status=complete"` — one `:complete` tour, one plain tour → `get tours_path(status: "complete")` → one `li`, pill text `"Complete"`.
-- `"filters to only Incomplete tours when status=incomplete"` — same setup → `get tours_path(status: "incomplete")` → one `li`, pill text `"Incomplete"`.
-- `"ignores an invalid status value and shows everything"` — one `:complete` tour, one plain tour → `get tours_path(status: "bogus")` → both `li`s present.
+**Verify**: `node --test` red → green.
 
-**Verify**: `bundle exec rspec spec/requests/tours_spec.rb` green; `bin/rubocop` clean.
+### 5. `playback_view.js` — pure view-model for the full playback board/panel
 
-### 5. Filter row UI (All / Complete / Incomplete segmented pills) — shipped
+New `app/javascript/game/playback_view.js`, analogous to the existing `board_view.js` + `tour_presenter.js` pattern but for a `TourPlayer` instead of a `KnightTourGame`. Given `(tourPlayer, showPath)`, returns:
+- per-square board view (dark/light + a `trail` flag for visited-but-not-current, matching the pattern in `board_view.js` but **not** reusing `bg-board-visited`, since that color is reserved for the live-play dead-end signal per the existing CSS comment — this needs its own "trail wash" treatment, step 7)
+- step-readout fields: current notation (or `—`), `step`, `total`
+- ticker tiles, via `ticker_view.js`
+- scrubber value/percent
+- transport button disabled states (`atStart`, `atEnd`)
+- path-line points (only when `showPath`)
 
-Prototyped two directions as an artifact (desktop + mobile mockups of each) before coding: **A**, three separate pills where the active color previews the status color it filters to (borrowing `bg-board-legal`/`bg-status-incomplete` directly); and **B**, a single segmented pill track — one `bg-zinc-900/60` rounded-full container, accent-filled active segment — mirroring the existing pagy pagination pills (`.pagy-nav a[aria-current="page"]` → `bg-accent font-semibold text-zinc-950`). **B was picked**: it doesn't compete visually with the status-color pills already on the cards below it, and it extends full-width on mobile for a bigger tap target rather than stacking three separate touch targets.
+**Spec first (red)** — `spec/javascript/game/playback_view.test.js`: 64-square board at full completion; trail flag set on visited-non-current squares; step-readout at step 0 shows `—`; button disabled states at both boundaries; path points empty when `showPath` is false.
 
-New row above the `<ul>` in `app/views/tours/index.html.erb`, `nav.pill-filters` (the class exists so the spec can scope to it, since the titlebar also has `<nav>`/`<a>` elements):
-```erb
-<nav class="pill-filters inline-flex w-full sm:w-auto gap-1 rounded-full border border-zinc-700/60 bg-zinc-900/60 p-1 mb-6">
-  <% { nil => "All", "complete" => "Complete", "incomplete" => "Incomplete" }.each do |status, label| %>
-    <%= link_to label, status ? tours_path(status:) : tours_path,
-          class: "flex-1 sm:flex-none rounded-full px-4 py-1.5 text-sm font-semibold text-center transition-colors duration-150 " +
-                 (@status == status ? "bg-accent text-zinc-950" : "text-zinc-400 hover:text-zinc-100") %>
-  <% end %>
-</nav>
-```
-`flex-1 sm:flex-none` is what makes the segments equal-width (full-bleed) on mobile and shrink-to-content on desktop, matching the two device mockups.
+**Verify**: `node --test` red → green.
 
-**Spec first (red)** — added to `spec/requests/tours_spec.rb`:
-- `"highlights All by default and Complete/Incomplete when filtered"` — `get tours_path` → within `nav.pill-filters`, the `"All"` link has class including `"bg-accent"`, `"Complete"`/`"Incomplete"` do not; `get tours_path(status: "complete")` → `"Complete"` has `"bg-accent"`, `"All"` does not.
+### 6. Shared `_move_ticker.html.erb` partial
 
-**Verify**: `bundle exec rspec` (43 examples) green; `bin/rubocop` clean. Still worth a manual `bin/dev` visual pass clicking All/Complete/Incomplete at both mobile and desktop widths — not covered by the request spec.
+`app/views/tours/_move_ticker.html.erb`, parameterized by a `target_prefix` local so it can emit `data-#{target_prefix}-target="tickerTrack"` etc. — reused by both `show.html.erb` (via `tour_playback_controller`) and `new.html.erb` (via `tour_controller`). Just the empty-shell markup (window + track container, matching the mockup's `.move-ticker`/`.move-ticker-track`); JS fills in tiles.
+
+No spec on its own — covered by the request specs in steps 8–9 asserting the partial rendered inside each page.
+
+### 7. New CSS components for transport/scrubber/ticker/speed/toggle
+
+Add to `app/assets/tailwind/application.css` `@layer components` (mirroring the existing `.pagy-nav` pattern, since `::-webkit-slider-thumb` etc. aren't reachable via Tailwind utilities alone): `.scrubber`, `.transport button` (+ `.play` variant), `.move-ticker`/`.tick`, `.speed-btn`, `.toggle`. Reuse existing tokens (`--color-accent`, `--color-board-current`, zinc palette) rather than inventing new ones, except for the one new token needed: a muted "trail wash" for playback's visited-but-not-current squares (step 5's board view) — add e.g. `--color-board-trail` alongside the existing board palette comment block, applied as an `inset box-shadow` wash (like the mockup's `.trail`) rather than a solid fill, so the underlying light/dark checker still shows through.
+
+**Verify**: visual only via `bin/dev` once wired up in step 8.
+
+### 8. `tour_playback_controller.js` + new `show.html.erb`
+
+New Stimulus controller `app/javascript/controllers/tour_playback_controller.js`. The board root element carries the tour's moves as a JSON data attribute (server-rendered, e.g. `data-tour-playback-moves-value="[...]"`, using a Stimulus JSON value rather than hand-parsing an attribute). On `connect()`: build `Square[]` + a `TourPlayer` starting at `step = total` (agreed default — fully drawn). Wire:
+- transport buttons (start/prev/play-pause/next/end) — reuse the `btn-start`/`btn-prev`/`btn-play`/`btn-next`/`btn-end` structure and SVGs from the mockup
+- scrubber `input`
+- ticker tile click → seek (stops autoplay first)
+- speed group click (0.5×/1×/2×/4×, matching the mockup's ms values)
+- path-line toggle
+- keyboard (←/→/space), scoped to while the controller is connected
+- `disconnect()` clears any running `setInterval` (Turbo navigation must not leak a timer)
+
+`render()` applies `playback_view.js`'s output to the DOM: square classes + knight SVG (shared module from step 1) on the current square, path SVG polyline (step 2's brighter/stronger pulse, only through `step` moves — reusing `_board_path.html.erb`'s point-math but slicing to the current step), step-readout text, scrubber value, ticker tiles via `_move_ticker.html.erb`'s targets, transport button `disabled` attributes.
+
+Rewrite `show.html.erb` to the mockup's layout: back link to `tours_path`, header meta (`Tour #<id>` + the existing `_status_pill` partial — unchanged, still "Complete"/"Incomplete"), `board-wrap` (64-square grid + path SVG overlay, replacing `_board.html.erb`/`_board_path.html.erb` for this page only — those partials keep serving the index cards unchanged), and the panel (step-readout, scrubber, transport, `_move_ticker` partial, speed group, path toggle).
+
+Scrubber `max` and `TourPlayer.total` come from `tour.moves.size`, **not** a hardcoded `64` — an incomplete/stuck tour's playback should only scrub across its actual moves (`Tour::FULL_TOUR_LENGTH` isn't relevant here, that's for the complete/incomplete *scope*, not this page).
+
+**Spec first (red)** — extend `spec/requests/tours_spec.rb`'s `GET /tours/:id` block:
+- the board root's moves data attribute contains the tour's notations in order
+- scrubber's `max` equals `tour.moves.size` for both a complete and an incomplete tour
+- the back link points to `tours_path`
+- the existing "shows move count and Complete/Incomplete pill" specs still pass (selectors may need updating for the new layout)
+
+No controller-behavior spec (matches this repo's existing convention — `tour_controller.js` itself has no test file; only the pure logic modules under `app/javascript/game/` get node:test coverage, per how `tour_presenter.js`/`board_view.js` are tested today).
+
+**Verify**: `bundle exec rspec spec/requests/tours_spec.rb` green; `bin/rubocop` clean; manual `bin/dev` pass deferred to step 10.
+
+### 9. Wire ticker+count into the live `/` play page
+
+`app/views/tours/new.html.erb`: replace the `#visited_count` box with the `_move_ticker` partial (passive — no seek handler, matching the mockup's "empty ticker until first move" behavior) plus a small `N / 64` count readout next to it. `tour_controller.js`: extend `render()` to call `ticker_view.js` (step 4) with `game.notationPath()` and the last index, and populate the ticker/count targets. `renderState` in `tour_presenter.js` grows a `ticker`/`notations` field.
+
+**Spec first (red)**:
+- `spec/javascript/game/tour_presenter.test.js`: `renderState` includes ticker data reflecting the current moves
+- `spec/requests/tours_spec.rb`'s root-page block: the ticker partial is present on `GET /`; any existing assertion on "Visited Squares" text is removed/updated
+
+**Verify**: `node --test` and `bundle exec rspec` green; `bin/rubocop` clean.
+
+### 10. Manual QA pass
+
+`bin/dev`, click through at desktop and mobile widths:
+- show page: start/prev/play-pause/next/end, scrubber drag, ticker click-to-seek, speed switching mid-play, path toggle, keyboard arrows/space, an **incomplete** tour's scrubber stopping at its real move count (not 64)
+- play page: ticker grows as you play, count updates, undo/restart/save still work
+- confirm no leaked interval after navigating away from show mid-autoplay (Turbo back/forward)
+
+Not covered by automated specs — flag explicitly in the step's status report, per this repo's existing pattern for JS/visual work.
+
+---
+
+Each step lands as its own commit once its spec is green (per this repo's TDD-step-by-step convention) — no batching multiple steps into one commit.
+
+---
+
+# Filter Tours By Completion Status (complete, kept for history)
+
+Widened the `/tours` index grid to a responsive 3-column layout and added `?status=complete`/`?status=incomplete` filtering.
+
+- **Responsive grid**: fixed-width `32rem` columns via `grid-cols-1 min-[70rem]:grid-cols-[repeat(2,32rem)] min-[104rem]:grid-cols-[repeat(3,32rem)]`, so cards stay a consistent size and the grid re-centers instead of stretching.
+- **Pagination resize**: `pagy(..., limit: 6)`, sized to 2 rows of 3 at the widest breakpoint.
+- **`Tour.complete`/`Tour.incomplete` scopes**: built from AR/Arel against a grouped `Move` subquery rather than `GROUP BY`/`HAVING` on `Tour` directly, so pagy's own `.count` call still sees a plain Integer. `incomplete` is `where.not(complete)`, covering zero-move tours for free. `Tour::FULL_TOUR_LENGTH = 64` is a deliberate seam for the deferred variable-board-size refactor.
+- **`ToursController#index` filtering**: `params[:status]` constrained to exactly `"complete"`/`"incomplete"` via pattern match before use — anything else (missing, garbage) falls back to the unfiltered list. Dispatched via two independent `if` reassignments rather than `public_send`/`send`, since Brakeman flags any `params`-derived value reaching those.
+- **Filter row UI**: `nav.pill-filters` — a single segmented pill track (`bg-zinc-900/60` rounded-full container, `bg-accent` active segment), picked over separate status-colored pills after prototyping both, since it doesn't compete visually with the status pills already on the cards below it and extends full-width on mobile for a bigger tap target.
+
+See `85bf5ab` and its constituent commits for the full history.
 
 ---
 
