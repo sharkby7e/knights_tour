@@ -1,0 +1,143 @@
+import { Controller } from "@hotwired/stimulus"
+import { Square } from "#game/square"
+import { TourPlayer } from "#game/tour_player"
+import { playbackView } from "#game/playback_view"
+import { KNIGHT_SVG } from "#game/knight_svg"
+
+const TICK_W_REM = 2.5
+
+export default class extends Controller {
+  static targets = [
+    "square", "pathSvg", "notation", "stepNum", "stepTotal", "scrubber",
+    "startButton", "prevButton", "playButton", "playIcon", "pauseIcon", "nextButton", "endButton",
+    "tickerWindow", "tickerTrack", "speedButton", "pathToggle"
+  ]
+  static values = { moves: Array }
+
+  connect() {
+    const squares = this.movesValue.map(n => Square.fromNotation(n))
+    this.player = new TourPlayer(squares, squares.length)
+    this.showPath = true
+    this.speedMs = 450
+    this.playing = false
+    this.render()
+  }
+
+  disconnect() {
+    this.stop()
+  }
+
+  toStart() { this.stop(); this.goTo(0) }
+  prev() { this.stop(); this.goTo(this.player.step - 1) }
+  next() { this.stop(); this.goTo(this.player.step + 1) }
+  toEnd() { this.stop(); this.goTo(this.player.total) }
+
+  scrub(event) {
+    this.stop()
+    this.goTo(Number(event.target.value))
+  }
+
+  seek(event) {
+    this.stop()
+    this.goTo(Number(event.currentTarget.dataset.index) + 1)
+  }
+
+  togglePlay() {
+    this.playing ? this.stop() : this.play()
+  }
+
+  play() {
+    if (this.player.atEnd) this.player.goTo(0)
+    this.playing = true
+    clearInterval(this.timer)
+    this.timer = setInterval(() => {
+      if (this.player.atEnd) { this.stop(); return }
+      this.goTo(this.player.step + 1)
+    }, this.speedMs)
+    this.render()
+  }
+
+  stop() {
+    this.playing = false
+    clearInterval(this.timer)
+  }
+
+  setSpeed(event) {
+    this.speedMs = Number(event.currentTarget.dataset.ms)
+    this.speedButtonTargets.forEach(b => b.classList.toggle("active", b === event.currentTarget))
+    if (this.playing) this.play()
+  }
+
+  togglePath() {
+    this.showPath = !this.showPath
+    this.pathToggleTarget.classList.toggle("on", this.showPath)
+    this.pathToggleTarget.setAttribute("aria-pressed", String(this.showPath))
+    this.render()
+  }
+
+  keydown(event) {
+    if (event.key === "ArrowRight") { this.stop(); this.goTo(this.player.step + 1) }
+    else if (event.key === "ArrowLeft") { this.stop(); this.goTo(this.player.step - 1) }
+    else if (event.key === " ") { event.preventDefault(); this.togglePlay() }
+  }
+
+  goTo(n) {
+    this.player.goTo(n)
+    this.render()
+  }
+
+  render() {
+    const view = playbackView(this.player, this.showPath)
+
+    view.squares.forEach((sq, i) => {
+      const el = this.squareTargets[i]
+      const trail = sq.trail ? "trail" : ""
+      el.className = `flex items-center justify-center border border-gray-500 transition-colors duration-200 ease-out ${sq.bgClass} ${trail}`
+      el.innerHTML = sq.current ? KNIGHT_SVG : ""
+    })
+
+    this.notationTarget.textContent = view.notation
+    this.stepNumTarget.textContent = view.step
+    this.stepTotalTarget.textContent = view.total
+
+    this.scrubberTarget.value = view.scrubberValue
+    this.scrubberTarget.style.setProperty("--pct", `${view.total === 0 ? 0 : (view.scrubberValue / view.total) * 100}%`)
+
+    this.startButtonTarget.disabled = view.atStart
+    this.prevButtonTarget.disabled = view.atStart
+    this.nextButtonTarget.disabled = view.atEnd
+    this.endButtonTarget.disabled = view.atEnd
+
+    this.playIconTarget.classList.toggle("hidden", this.playing)
+    this.pauseIconTarget.classList.toggle("hidden", !this.playing)
+
+    this.renderTicker(view.ticker)
+    this.renderPath(view.pathPoints)
+  }
+
+  renderTicker(tiles) {
+    this.tickerTrackTarget.innerHTML = tiles.map((t, i) =>
+      `<button type="button" class="tick${t.current ? " current" : ""}" data-index="${i}" data-action="click->tour-playback#seek">${t.notation}</button>`
+    ).join("")
+
+    const currentIndex = tiles.findIndex(t => t.current)
+    const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+    const tickW = TICK_W_REM * rootPx
+    const windowWidth = this.tickerWindowTarget.clientWidth
+    const centerOn = Math.max(0, currentIndex)
+    this.tickerTrackTarget.style.transform = `translateX(${windowWidth / 2 - tickW / 2 - centerOn * tickW}px)`
+  }
+
+  renderPath(points) {
+    if (points.length < 2) {
+      this.pathSvgTarget.innerHTML = ""
+      return
+    }
+
+    const coords = points.map(sq => `${(sq.x - 0.5) * 12.5},${(8 - sq.y + 0.5) * 12.5}`).join(" ")
+    this.pathSvgTarget.innerHTML = `
+      <polyline points="${coords}" fill="none" stroke="#3df3ff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+      <polyline points="${coords}" fill="none" stroke="#ff2ee0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" class="animate-pulse-line" />
+    `
+  }
+}

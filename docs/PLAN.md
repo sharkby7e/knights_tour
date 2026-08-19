@@ -15,7 +15,7 @@ Decisions made with the user before planning this:
 - [x] 2. Brighten/strengthen the path-line pulse
 - [x] 3. `TourPlayer` — step-cursor over an ordered list of squares
 - [x] 4. `ticker_view.js` + `playback_view.js` — pure view-model layer
-- [ ] 5. Show page playback UI — partial, CSS, controller, `show.html.erb`
+- [x] 5. Show page playback UI — partial, CSS, controller, `show.html.erb`
 - [ ] 6. Wire ticker+count into the live `/` play page
 
 # Plan
@@ -40,26 +40,9 @@ Pure refactor, no behavior change. Moved the inline `KNIGHT_SVG` template litera
 
 Built as planned: `ticker_view.js`'s `tickerView(notations, currentIndex)` and `playback_view.js`'s `playbackView(tourPlayer, showPath)`, the latter built around a local `playbackSquareView` parallel to `board_view.js`'s `squareView` but adapted to `TourPlayer`. No deviations from the plan's design. `node --test` red → green (32 examples); `bundle exec rspec`/`bin/rubocop` untouched.
 
-### 5. Show page playback UI — partial, CSS, controller, `show.html.erb`
+### 5. Show page playback UI — partial, CSS, controller, `show.html.erb` — shipped
 
-The full "build it and look at it" step — a shared ticker partial and new CSS components have no independent way to verify until something renders and drives them, so they land together with the controller and page rewrite, verified with one manual `bin/dev` pass at the end.
-
-- **`app/views/tours/_move_ticker.html.erb`**: parameterized by a `target_prefix` local so it can emit `data-#{target_prefix}-target="tickerTrack"` etc. — reused here by `show.html.erb` (via `tour_playback_controller`) and later by `new.html.erb` (step 6, via `tour_controller`). Just the empty-shell markup (window + track container, matching the mockup's `.move-ticker`/`.move-ticker-track`); JS fills in tiles.
-- **CSS**: add to `app/assets/tailwind/application.css` `@layer components` (mirroring the existing `.pagy-nav` pattern, since `::-webkit-slider-thumb` etc. aren't reachable via Tailwind utilities alone): `.scrubber`, `.transport button` (+ `.play` variant), `.move-ticker`/`.tick`, `.speed-btn`, `.toggle`. Reuse existing tokens (`--color-accent`, `--color-board-current`, zinc palette) rather than inventing new ones, except one new token: a muted "trail wash" for playback's visited-but-not-current squares — add e.g. `--color-board-trail` alongside the existing board palette comment block, applied as an `inset box-shadow` wash (like the mockup's `.trail`) rather than a solid fill, so the underlying light/dark checker still shows through.
-- **`app/javascript/controllers/tour_playback_controller.js`** (new Stimulus controller): the board root element carries the tour's moves as a JSON data attribute (server-rendered, e.g. `data-tour-playback-moves-value="[...]"`, using a Stimulus JSON value rather than hand-parsing an attribute). On `connect()`: build `Square[]` + a `TourPlayer` starting at `step = total` (agreed default — fully drawn). Wire: transport buttons (start/prev/play-pause/next/end, reusing the mockup's structure/SVGs), scrubber `input`, ticker tile click → seek (stops autoplay first), speed group click (0.5×/1×/2×/4×), path-line toggle, keyboard (←/→/space) scoped to while connected, and a `disconnect()` that clears any running `setInterval` (Turbo navigation must not leak a timer). `render()` applies `playback_view.js`'s output to the DOM: square classes + knight SVG (shared module from step 1) on the current square, path SVG polyline (step 2's pulse, sliced to the current step), step-readout text, scrubber value, ticker tiles, transport button `disabled` attributes.
-- **`show.html.erb` rewrite**: the mockup's layout — back link to `tours_path`, header meta (`Tour #<id>` + the existing unchanged `_status_pill` partial), `board-wrap` (64-square grid + path SVG overlay, replacing `_board.html.erb`/`_board_path.html.erb` for this page only — those partials keep serving the index cards unchanged), and the panel (step-readout, scrubber, transport, `_move_ticker` partial, speed group, path toggle).
-
-Scrubber `max` and `TourPlayer.total` come from `tour.moves.size`, **not** a hardcoded `64` — an incomplete/stuck tour's playback should only scrub across its actual moves (`Tour::FULL_TOUR_LENGTH` isn't relevant here, that's for the complete/incomplete *scope*, not this page).
-
-**Spec first (red)** — extend `spec/requests/tours_spec.rb`'s `GET /tours/:id` block:
-- the board root's moves data attribute contains the tour's notations in order
-- scrubber's `max` equals `tour.moves.size` for both a complete and an incomplete tour
-- the back link points to `tours_path`
-- the existing "shows move count and Complete/Incomplete pill" specs still pass (selectors may need updating for the new layout)
-
-No controller-behavior spec (matches this repo's existing convention — `tour_controller.js` itself has no test file; only the pure logic modules under `app/javascript/game/` get node:test coverage).
-
-**Verify**: `bundle exec rspec spec/requests/tours_spec.rb` green; `bin/rubocop` clean; manual `bin/dev` pass at desktop and mobile widths — start/prev/play-pause/next/end, scrubber drag, ticker click-to-seek, speed switching mid-play, path toggle, keyboard arrows/space, an **incomplete** tour's scrubber stopping at its real move count (not 64), and no leaked interval after navigating away mid-autoplay (Turbo back/forward). Not covered by automated specs — flagged explicitly in this step's status report.
+Built as planned, then hand-tested and tuned with the user through several rounds: fixed a missing `.transport { display: flex }` rule (buttons were stacking vertically); the board grid switched from relying on each square's own `w-10/lg:w-24` to size the grid intrinsically (works fine on the plain interactive board, but broke — non-square cells, misaligned path line — once an absolutely-positioned SVG sibling entered the picture) to a definite `w-80 lg:w-[48rem]` + `aspect-square` container, matching the sizing technique `_board.html.erb` already uses elsewhere; transport buttons, scrubber, ticker, and speed/path toggles all sized up from the initial pass; speed buttons switched from `flex-1` to fixed `w-10 h-10` squares; the ticker shrunk and given a `backdrop-filter: blur` + `mask-image` edge taper (a "wheel" look, beyond the mockup's plain gradient fade). Request specs green (6 examples covering the moves data attribute, scrubber max, back link, and the updated move-count/pill assertions); `bin/rubocop` clean. No automated coverage of the interactive controller (matches this repo's convention — `tour_controller.js` has no test file either); verified entirely by hand in the browser.
 
 ### 6. Wire ticker+count into the live `/` play page
 
