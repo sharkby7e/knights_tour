@@ -14,13 +14,9 @@ Decisions made with the user before planning this:
 - [x] 1. Extract `KNIGHT_SVG` into a shared module
 - [x] 2. Brighten/strengthen the path-line pulse
 - [x] 3. `TourPlayer` — step-cursor over an ordered list of squares
-- [ ] 4. `ticker_view.js` — pure view-model for ticker tiles
-- [ ] 5. `playback_view.js` — pure view-model for the full playback board/panel
-- [ ] 6. Shared `_move_ticker.html.erb` partial
-- [ ] 7. New CSS components for transport/scrubber/ticker/speed/toggle
-- [ ] 8. `tour_playback_controller.js` + new `show.html.erb`
-- [ ] 9. Wire ticker+count into the live `/` play page
-- [ ] 10. Manual QA pass (`bin/dev`)
+- [ ] 4. `ticker_view.js` + `playback_view.js` — pure view-model layer
+- [ ] 5. Show page playback UI — partial, CSS, controller, `show.html.erb`
+- [ ] 6. Wire ticker+count into the live `/` play page
 
 # Plan
 
@@ -40,54 +36,34 @@ Pure refactor, no behavior change. Moved the inline `KNIGHT_SVG` template litera
 
 **Verify**: `node --test` red (module not found) → implement → green (27 examples). `bundle exec rspec` (43) and `bin/rubocop` stayed green throughout — no Ruby/Rails touched by this step.
 
-### 4. `ticker_view.js` — pure view-model for ticker tiles
+### 4. `ticker_view.js` + `playback_view.js` — pure view-model layer
 
-New `app/javascript/game/ticker_view.js`, e.g. `tickerView(notations, currentIndex)` → array of `{ notation, current }`. Shared by both the show page's ticker (click-to-seek, `currentIndex` can be mid-array) and the live-play ticker (passive, `currentIndex` always the last tile).
+Two small pure modules, built and specced together since `playback_view.js` calls straight into `ticker_view.js` and neither is independently interesting to verify on its own (no UI exists yet to render either against — that's step 5).
 
-**Spec first (red)** — `spec/javascript/game/ticker_view.test.js`: empty list; marks the right tile `current`; no tile marked current when index is `-1` (pre-game state on the play page).
+`app/javascript/game/ticker_view.js`: e.g. `tickerView(notations, currentIndex)` → array of `{ notation, current }`. Shared by both the show page's ticker (click-to-seek, `currentIndex` can be mid-array) and the live-play ticker (passive, `currentIndex` always the last tile, or `-1` pre-game).
 
-**Verify**: `node --test` red → green.
-
-### 5. `playback_view.js` — pure view-model for the full playback board/panel
-
-New `app/javascript/game/playback_view.js`, analogous to the existing `board_view.js` + `tour_presenter.js` pattern but for a `TourPlayer` instead of a `KnightTourGame`. Given `(tourPlayer, showPath)`, returns:
-- per-square board view (dark/light + a `trail` flag for visited-but-not-current, matching the pattern in `board_view.js` but **not** reusing `bg-board-visited`, since that color is reserved for the live-play dead-end signal per the existing CSS comment — this needs its own "trail wash" treatment, step 7)
+`app/javascript/game/playback_view.js`, analogous to the existing `board_view.js` + `tour_presenter.js` pattern but for a `TourPlayer` instead of a `KnightTourGame`. Given `(tourPlayer, showPath)`, returns:
+- per-square board view (dark/light + a `trail` flag for visited-but-not-current, matching the pattern in `board_view.js` but **not** reusing `bg-board-visited`, since that color is reserved for the live-play dead-end signal per the existing CSS comment — this needs its own "trail wash" treatment, step 5)
 - step-readout fields: current notation (or `—`), `step`, `total`
 - ticker tiles, via `ticker_view.js`
 - scrubber value/percent
 - transport button disabled states (`atStart`, `atEnd`)
 - path-line points (only when `showPath`)
 
-**Spec first (red)** — `spec/javascript/game/playback_view.test.js`: 64-square board at full completion; trail flag set on visited-non-current squares; step-readout at step 0 shows `—`; button disabled states at both boundaries; path points empty when `showPath` is false.
+**Spec first (red)**, kept to essentials per this repo's minimal-JS-testing convention:
+- `spec/javascript/game/ticker_view.test.js`: marks the right tile `current`; no tile marked current when index is `-1`
+- `spec/javascript/game/playback_view.test.js`: trail flag set on visited-non-current squares but not the current one; button disabled states at both boundaries; path points empty when `showPath` is false
 
-**Verify**: `node --test` red → green.
+**Verify**: `node --test` red → implement → green. `bundle exec rspec`/`bin/rubocop` untouched (no Ruby/Rails in this step).
 
-### 6. Shared `_move_ticker.html.erb` partial
+### 5. Show page playback UI — partial, CSS, controller, `show.html.erb`
 
-`app/views/tours/_move_ticker.html.erb`, parameterized by a `target_prefix` local so it can emit `data-#{target_prefix}-target="tickerTrack"` etc. — reused by both `show.html.erb` (via `tour_playback_controller`) and `new.html.erb` (via `tour_controller`). Just the empty-shell markup (window + track container, matching the mockup's `.move-ticker`/`.move-ticker-track`); JS fills in tiles.
+The full "build it and look at it" step — a shared ticker partial and new CSS components have no independent way to verify until something renders and drives them, so they land together with the controller and page rewrite, verified with one manual `bin/dev` pass at the end.
 
-No spec on its own — covered by the request specs in steps 8–9 asserting the partial rendered inside each page.
-
-### 7. New CSS components for transport/scrubber/ticker/speed/toggle
-
-Add to `app/assets/tailwind/application.css` `@layer components` (mirroring the existing `.pagy-nav` pattern, since `::-webkit-slider-thumb` etc. aren't reachable via Tailwind utilities alone): `.scrubber`, `.transport button` (+ `.play` variant), `.move-ticker`/`.tick`, `.speed-btn`, `.toggle`. Reuse existing tokens (`--color-accent`, `--color-board-current`, zinc palette) rather than inventing new ones, except for the one new token needed: a muted "trail wash" for playback's visited-but-not-current squares (step 5's board view) — add e.g. `--color-board-trail` alongside the existing board palette comment block, applied as an `inset box-shadow` wash (like the mockup's `.trail`) rather than a solid fill, so the underlying light/dark checker still shows through.
-
-**Verify**: visual only via `bin/dev` once wired up in step 8.
-
-### 8. `tour_playback_controller.js` + new `show.html.erb`
-
-New Stimulus controller `app/javascript/controllers/tour_playback_controller.js`. The board root element carries the tour's moves as a JSON data attribute (server-rendered, e.g. `data-tour-playback-moves-value="[...]"`, using a Stimulus JSON value rather than hand-parsing an attribute). On `connect()`: build `Square[]` + a `TourPlayer` starting at `step = total` (agreed default — fully drawn). Wire:
-- transport buttons (start/prev/play-pause/next/end) — reuse the `btn-start`/`btn-prev`/`btn-play`/`btn-next`/`btn-end` structure and SVGs from the mockup
-- scrubber `input`
-- ticker tile click → seek (stops autoplay first)
-- speed group click (0.5×/1×/2×/4×, matching the mockup's ms values)
-- path-line toggle
-- keyboard (←/→/space), scoped to while the controller is connected
-- `disconnect()` clears any running `setInterval` (Turbo navigation must not leak a timer)
-
-`render()` applies `playback_view.js`'s output to the DOM: square classes + knight SVG (shared module from step 1) on the current square, path SVG polyline (step 2's brighter/stronger pulse, only through `step` moves — reusing `_board_path.html.erb`'s point-math but slicing to the current step), step-readout text, scrubber value, ticker tiles via `_move_ticker.html.erb`'s targets, transport button `disabled` attributes.
-
-Rewrite `show.html.erb` to the mockup's layout: back link to `tours_path`, header meta (`Tour #<id>` + the existing `_status_pill` partial — unchanged, still "Complete"/"Incomplete"), `board-wrap` (64-square grid + path SVG overlay, replacing `_board.html.erb`/`_board_path.html.erb` for this page only — those partials keep serving the index cards unchanged), and the panel (step-readout, scrubber, transport, `_move_ticker` partial, speed group, path toggle).
+- **`app/views/tours/_move_ticker.html.erb`**: parameterized by a `target_prefix` local so it can emit `data-#{target_prefix}-target="tickerTrack"` etc. — reused here by `show.html.erb` (via `tour_playback_controller`) and later by `new.html.erb` (step 6, via `tour_controller`). Just the empty-shell markup (window + track container, matching the mockup's `.move-ticker`/`.move-ticker-track`); JS fills in tiles.
+- **CSS**: add to `app/assets/tailwind/application.css` `@layer components` (mirroring the existing `.pagy-nav` pattern, since `::-webkit-slider-thumb` etc. aren't reachable via Tailwind utilities alone): `.scrubber`, `.transport button` (+ `.play` variant), `.move-ticker`/`.tick`, `.speed-btn`, `.toggle`. Reuse existing tokens (`--color-accent`, `--color-board-current`, zinc palette) rather than inventing new ones, except one new token: a muted "trail wash" for playback's visited-but-not-current squares — add e.g. `--color-board-trail` alongside the existing board palette comment block, applied as an `inset box-shadow` wash (like the mockup's `.trail`) rather than a solid fill, so the underlying light/dark checker still shows through.
+- **`app/javascript/controllers/tour_playback_controller.js`** (new Stimulus controller): the board root element carries the tour's moves as a JSON data attribute (server-rendered, e.g. `data-tour-playback-moves-value="[...]"`, using a Stimulus JSON value rather than hand-parsing an attribute). On `connect()`: build `Square[]` + a `TourPlayer` starting at `step = total` (agreed default — fully drawn). Wire: transport buttons (start/prev/play-pause/next/end, reusing the mockup's structure/SVGs), scrubber `input`, ticker tile click → seek (stops autoplay first), speed group click (0.5×/1×/2×/4×), path-line toggle, keyboard (←/→/space) scoped to while connected, and a `disconnect()` that clears any running `setInterval` (Turbo navigation must not leak a timer). `render()` applies `playback_view.js`'s output to the DOM: square classes + knight SVG (shared module from step 1) on the current square, path SVG polyline (step 2's pulse, sliced to the current step), step-readout text, scrubber value, ticker tiles, transport button `disabled` attributes.
+- **`show.html.erb` rewrite**: the mockup's layout — back link to `tours_path`, header meta (`Tour #<id>` + the existing unchanged `_status_pill` partial), `board-wrap` (64-square grid + path SVG overlay, replacing `_board.html.erb`/`_board_path.html.erb` for this page only — those partials keep serving the index cards unchanged), and the panel (step-readout, scrubber, transport, `_move_ticker` partial, speed group, path toggle).
 
 Scrubber `max` and `TourPlayer.total` come from `tour.moves.size`, **not** a hardcoded `64` — an incomplete/stuck tour's playback should only scrub across its actual moves (`Tour::FULL_TOUR_LENGTH` isn't relevant here, that's for the complete/incomplete *scope*, not this page).
 
@@ -97,11 +73,11 @@ Scrubber `max` and `TourPlayer.total` come from `tour.moves.size`, **not** a har
 - the back link points to `tours_path`
 - the existing "shows move count and Complete/Incomplete pill" specs still pass (selectors may need updating for the new layout)
 
-No controller-behavior spec (matches this repo's existing convention — `tour_controller.js` itself has no test file; only the pure logic modules under `app/javascript/game/` get node:test coverage, per how `tour_presenter.js`/`board_view.js` are tested today).
+No controller-behavior spec (matches this repo's existing convention — `tour_controller.js` itself has no test file; only the pure logic modules under `app/javascript/game/` get node:test coverage).
 
-**Verify**: `bundle exec rspec spec/requests/tours_spec.rb` green; `bin/rubocop` clean; manual `bin/dev` pass deferred to step 10.
+**Verify**: `bundle exec rspec spec/requests/tours_spec.rb` green; `bin/rubocop` clean; manual `bin/dev` pass at desktop and mobile widths — start/prev/play-pause/next/end, scrubber drag, ticker click-to-seek, speed switching mid-play, path toggle, keyboard arrows/space, an **incomplete** tour's scrubber stopping at its real move count (not 64), and no leaked interval after navigating away mid-autoplay (Turbo back/forward). Not covered by automated specs — flagged explicitly in this step's status report.
 
-### 9. Wire ticker+count into the live `/` play page
+### 6. Wire ticker+count into the live `/` play page
 
 `app/views/tours/new.html.erb`: replace the `#visited_count` box with the `_move_ticker` partial (passive — no seek handler, matching the mockup's "empty ticker until first move" behavior) plus a small `N / 64` count readout next to it. `tour_controller.js`: extend `render()` to call `ticker_view.js` (step 4) with `game.notationPath()` and the last index, and populate the ticker/count targets. `renderState` in `tour_presenter.js` grows a `ticker`/`notations` field.
 
@@ -109,16 +85,7 @@ No controller-behavior spec (matches this repo's existing convention — `tour_c
 - `spec/javascript/game/tour_presenter.test.js`: `renderState` includes ticker data reflecting the current moves
 - `spec/requests/tours_spec.rb`'s root-page block: the ticker partial is present on `GET /`; any existing assertion on "Visited Squares" text is removed/updated
 
-**Verify**: `node --test` and `bundle exec rspec` green; `bin/rubocop` clean.
-
-### 10. Manual QA pass
-
-`bin/dev`, click through at desktop and mobile widths:
-- show page: start/prev/play-pause/next/end, scrubber drag, ticker click-to-seek, speed switching mid-play, path toggle, keyboard arrows/space, an **incomplete** tour's scrubber stopping at its real move count (not 64)
-- play page: ticker grows as you play, count updates, undo/restart/save still work
-- confirm no leaked interval after navigating away from show mid-autoplay (Turbo back/forward)
-
-Not covered by automated specs — flag explicitly in the step's status report, per this repo's existing pattern for JS/visual work.
+**Verify**: `node --test` and `bundle exec rspec` green; `bin/rubocop` clean; manual `bin/dev` pass — ticker grows as you play, count updates, undo/restart/save still work.
 
 ---
 
