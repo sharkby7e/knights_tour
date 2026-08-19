@@ -38,15 +38,7 @@ Pure refactor, no behavior change. Moved the inline `KNIGHT_SVG` template litera
 
 ### 4. `ticker_view.js` + `playback_view.js` — pure view-model layer — shipped
 
-`app/javascript/game/ticker_view.js`: `tickerView(notations, currentIndex)` → array of `{ notation, current }`, `current` true only at `currentIndex` (so `-1` marks nothing current — the live-play pre-game case). Shared by both the show page's ticker (click-to-seek, `currentIndex` mid-array) and the live-play ticker (step 6, passive, always the last tile or `-1`).
-
-`app/javascript/game/playback_view.js`: analogous to the existing `board_view.js` + `tour_presenter.js` pattern but for a `TourPlayer` instead of a `KnightTourGame` — a local `playbackSquareView(tourPlayer, square)` parallels `squareView` but adapted to `TourPlayer`'s shape (`current`, not `currentSquare`; no legal-move highlighting, since playback never has "legal next moves"). `playbackView(tourPlayer, showPath)` returns per-square views (`dark`/`light` + a `trail` flag for visited-but-not-current — deliberately **not** reusing `bg-board-visited`, reserved for the live-play dead-end signal; trail gets its own CSS treatment in step 5), step-readout fields (`notation` or `—`, `step`, `total`), `ticker` tiles via `ticker_view.js`, `scrubberValue`, `atStart`/`atEnd` (passed through directly rather than pre-split per-button, keeping the surface minimal — step 5's controller maps start/prev to `atStart` and next/end to `atEnd`), and `pathPoints` (the visited `Square[]` slice, only when `showPath`; left as `Square`s rather than pre-converted to SVG coordinates, since that conversion belongs to step 5 once there's an actual SVG to draw into).
-
-**Spec**, kept to essentials per this repo's minimal-JS-testing convention:
-- `spec/javascript/game/ticker_view.test.js`: marks the right tile `current`; no tile marked current when index is `-1`
-- `spec/javascript/game/playback_view.test.js`: trail flag set on visited-non-current squares but not the current one; `atStart`/`atEnd` at both boundaries; path points empty when `showPath` is false
-
-**Verify**: `node --test` red (modules not found) → implement → green (32 examples, up from 29). `bundle exec rspec` (43) and `bin/rubocop` (39 files, clean) untouched — no Ruby/Rails in this step.
+Built as planned: `ticker_view.js`'s `tickerView(notations, currentIndex)` and `playback_view.js`'s `playbackView(tourPlayer, showPath)`, the latter built around a local `playbackSquareView` parallel to `board_view.js`'s `squareView` but adapted to `TourPlayer`. No deviations from the plan's design. `node --test` red → green (32 examples); `bundle exec rspec`/`bin/rubocop` untouched.
 
 ### 5. Show page playback UI — partial, CSS, controller, `show.html.erb`
 
