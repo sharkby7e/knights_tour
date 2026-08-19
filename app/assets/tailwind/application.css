@@ -53,9 +53,9 @@
 }
 
 @layer components {
-  /* Styles Pagy's generated <nav>/<a> markup (see pagy_nav in tours/index.html.erb) as button
-     pills. Pagy marks the active page with aria-current="page" and disabled prev/next/gaps with
-     aria-disabled="true" rather than CSS classes, so we key off those attributes. */
+  /* Styles Pagy's generated <nav>/<a> markup (see @pagy.series_nav in tours/index.html.erb) as
+     button pills. Pagy marks the active page with aria-current="page" and disabled prev/next/gaps
+     with aria-disabled="true" rather than CSS classes, so we key off those attributes. */
   .pagy-nav nav {
     @apply flex items-center justify-center gap-1 sm:gap-2;
   }
