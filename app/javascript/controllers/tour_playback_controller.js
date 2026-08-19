@@ -3,8 +3,7 @@ import { Square } from "#game/square"
 import { TourPlayer } from "#game/tour_player"
 import { playbackView } from "#game/playback_view"
 import { KNIGHT_SVG } from "#game/knight_svg"
-
-const TICK_W_REM = 2.5
+import { renderTicker } from "#game/ticker_dom"
 
 export default class extends Controller {
   static targets = [
@@ -37,9 +36,9 @@ export default class extends Controller {
     this.goTo(Number(event.target.value))
   }
 
-  seek(event) {
+  seek(index) {
     this.stop()
-    this.goTo(Number(event.currentTarget.dataset.index) + 1)
+    this.goTo(index + 1)
   }
 
   togglePlay() {
@@ -111,21 +110,8 @@ export default class extends Controller {
     this.playIconTarget.classList.toggle("hidden", this.playing)
     this.pauseIconTarget.classList.toggle("hidden", !this.playing)
 
-    this.renderTicker(view.ticker)
+    renderTicker(this.tickerTrackTarget, this.tickerWindowTarget, view.ticker, i => this.seek(i))
     this.renderPath(view.pathPoints)
-  }
-
-  renderTicker(tiles) {
-    this.tickerTrackTarget.innerHTML = tiles.map((t, i) =>
-      `<button type="button" class="tick${t.current ? " current" : ""}" data-index="${i}" data-action="click->tour-playback#seek">${t.notation}</button>`
-    ).join("")
-
-    const currentIndex = tiles.findIndex(t => t.current)
-    const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
-    const tickW = TICK_W_REM * rootPx
-    const windowWidth = this.tickerWindowTarget.clientWidth
-    const centerOn = Math.max(0, currentIndex)
-    this.tickerTrackTarget.style.transform = `translateX(${windowWidth / 2 - tickW / 2 - centerOn * tickW}px)`
   }
 
   renderPath(points) {

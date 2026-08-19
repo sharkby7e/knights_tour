@@ -1,0 +1,53 @@
+<div class="w-full max-w-sm flex flex-col gap-5">
+  <div class="flex items-baseline justify-between">
+    <span data-tour-playback-target="notation" class="font-title text-2xl text-board-current tabular-nums">&mdash;</span>
+    <span class="text-sm text-zinc-400 tabular-nums">
+      <span data-tour-playback-target="stepNum">0</span> / <span data-tour-playback-target="stepTotal"><%= tour.moves.size %></span>
+    </span>
+  </div>
+
+  <input type="range" class="scrubber" min="0" max="<%= tour.moves.size %>" value="<%= tour.moves.size %>" step="1"
+         data-tour-playback-target="scrubber" data-action="input->tour-playback#scrub" aria-label="Move scrubber">
+
+  <div class="transport">
+    <button type="button" title="Jump to start" aria-label="Jump to start"
+            data-tour-playback-target="startButton" data-action="click->tour-playback#toStart">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v16"/><path d="M18 6 8 12l10 6V6Z"/></svg>
+    </button>
+    <button type="button" title="Previous move" aria-label="Previous move"
+            data-tour-playback-target="prevButton" data-action="click->tour-playback#prev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <button type="button" class="play" title="Play" aria-label="Play"
+            data-tour-playback-target="playButton" data-action="click->tour-playback#togglePlay">
+      <svg data-tour-playback-target="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <svg data-tour-playback-target="pauseIcon" viewBox="0 0 24 24" fill="currentColor" class="hidden"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+    </button>
+    <button type="button" title="Next move" aria-label="Next move"
+            data-tour-playback-target="nextButton" data-action="click->tour-playback#next">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <button type="button" title="Jump to end" aria-label="Jump to end"
+            data-tour-playback-target="endButton" data-action="click->tour-playback#toEnd">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 4v16"/><path d="M6 6l10 6-10 6V6Z"/></svg>
+    </button>
+  </div>
+
+  <%= render "tours/move_ticker", target_prefix: "tour-playback" %>
+
+  <div class="flex items-center justify-between gap-3">
+    <span class="text-xs uppercase tracking-wide text-zinc-500">Speed</span>
+    <div class="speed-group">
+      <button type="button" class="speed-btn" data-ms="900" data-tour-playback-target="speedButton" data-action="click->tour-playback#setSpeed">0.5&times;</button>
+      <button type="button" class="speed-btn active" data-ms="450" data-tour-playback-target="speedButton" data-action="click->tour-playback#setSpeed">1&times;</button>
+      <button type="button" class="speed-btn" data-ms="180" data-tour-playback-target="speedButton" data-action="click->tour-playback#setSpeed">2&times;</button>
+      <button type="button" class="speed-btn" data-ms="70" data-tour-playback-target="speedButton" data-action="click->tour-playback#setSpeed">4&times;</button>
+    </div>
+  </div>
+
+  <div class="flex items-center justify-between gap-3">
+    <span class="text-xs uppercase tracking-wide text-zinc-500">Show path line</span>
+    <button type="button" class="toggle on" aria-label="Toggle path line" aria-pressed="true"
+            data-tour-playback-target="pathToggle" data-action="click->tour-playback#togglePath"></button>
+  </div>
+</div>
