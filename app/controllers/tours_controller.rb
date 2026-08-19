@@ -4,7 +4,11 @@ class ToursController < ApplicationController
   def index
     @status = (params[:status] in "complete" | "incomplete") ? params[:status] : nil
     scope = Tour.includes(:moves).order(created_at: :desc)
-    scope = scope.public_send(@status) if @status
+    scope = case @status
+    when "complete" then scope.complete
+    when "incomplete" then scope.incomplete
+    else scope
+    end
     @pagy, @tours = pagy(scope, limit: 6)
   end
 
