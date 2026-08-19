@@ -52,11 +52,14 @@ scope :incomplete, -> { where.not(id: complete) }
 def index
   @status = (params[:status] in "complete" | "incomplete") ? params[:status] : nil
   scope = Tour.includes(:moves).order(created_at: :desc)
-  scope = scope.public_send(@status) if @status
+  scope = scope.complete if @status == "complete"
+  scope = scope.incomplete if @status == "incomplete"
   @pagy, @tours = pagy(scope, limit: 6)
 end
 ```
 Anything other than exactly `"complete"` or `"incomplete"` (missing, blank, garbage) falls back to the unfiltered list — no 500s on a bad query string. Note the parens around the `in` pattern-match expression: `x in pattern ? a : b` is a syntax error (the `?`/`:` get parsed as part of the pattern), so the boolean has to be parenthesized before the ternary can apply to it.
+
+Originally dispatched with `scope.public_send(@status)`, which is exactly as safe here (`@status` is already constrained above) but Brakeman's static analysis can't see that guarantee and flags/fails CI on any `params`-derived value reaching `public_send`/`send`. Two independent `if @status == ...` reassignments read as more idiomatic Rails than a `case` that reassigns `scope` through itself, and only one line can ever fire.
 
 **Spec first (red)** — add to `spec/requests/tours_spec.rb`:
 - `"filters to only Complete tours when status=complete"` — one `:complete` tour, one plain tour → `get tours_path(status: "complete")` → one `li`, pill text `"Complete"`.
