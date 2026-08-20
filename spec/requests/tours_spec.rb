@@ -143,11 +143,11 @@ RSpec.describe "Tours", type: :request do
       expect(doc.at_css(".move-ticker")).to be_present
     end
 
-    it "renders a red restart button in the transport row" do
+    it "renders a restart button in the transport row" do
       get root_path
 
       doc = Nokogiri::HTML5.fragment(response.body)
-      expect(doc.at_css("button.restart")).to be_present
+      expect(doc.at_css("button[data-action*='tour#restart']")).to be_present
     end
 
     it "renders a path-line toggle" do
