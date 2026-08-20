@@ -177,30 +177,6 @@ RSpec.describe "Tours", type: :request do
       root = doc.at_css("[data-tour-playback-moves-value]")
       expect(JSON.parse(root["data-tour-playback-moves-value"])).to eq([ "e4", "f6" ])
     end
-
-    it "sets the scrubber's max to the tour's move count" do
-      tour = create(:tour, :complete)
-      incomplete = create(:tour)
-      create(:move, tour: incomplete, position: 1, square: "a1")
-
-      get tour_path(tour)
-      doc = Nokogiri::HTML5.fragment(response.body)
-      expect(doc.at_css(".scrubber")["max"]).to eq("64")
-
-      get tour_path(incomplete)
-      doc = Nokogiri::HTML5.fragment(response.body)
-      expect(doc.at_css(".scrubber")["max"]).to eq("1")
-    end
-
-    it "links back to the tours index" do
-      tour = create(:tour)
-
-      get tour_path(tour)
-
-      doc = Nokogiri::HTML5.fragment(response.body)
-      back_link = doc.css("a").find { |a| a.text.strip == "All tours" }
-      expect(back_link["href"]).to eq(tours_path)
-    end
   end
 
   describe "POST /tours" do

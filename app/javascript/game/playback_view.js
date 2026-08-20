@@ -16,14 +16,12 @@ function playbackSquareView(tourPlayer, square) {
 }
 
 export function playbackView(tourPlayer, showPath) {
-  const { step, total, current, atStart, atEnd, notations } = tourPlayer
+  const { step, total, atStart, atEnd, notations } = tourPlayer
   return {
     squares: Square.all().map(sq => playbackSquareView(tourPlayer, sq)),
-    notation: current ? current.notation : "—",
     step,
     total,
     ticker: tickerView(notations, step - 1),
-    scrubberValue: step,
     atStart,
     atEnd,
     pathPoints: showPath ? tourPlayer.squares.slice(0, step) : []

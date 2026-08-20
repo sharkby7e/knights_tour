@@ -7,7 +7,7 @@ import { renderTicker } from "#game/ticker_dom"
 
 export default class extends Controller {
   static targets = [
-    "square", "pathSvg", "notation", "stepNum", "stepTotal", "scrubber",
+    "square", "pathSvg", "stepNum", "stepTotal",
     "startButton", "prevButton", "playButton", "playIcon", "pauseIcon", "nextButton", "endButton",
     "tickerWindow", "tickerTrack", "speedButton", "pathToggle"
   ]
@@ -30,11 +30,6 @@ export default class extends Controller {
   prev() { this.stop(); this.goTo(this.player.step - 1) }
   next() { this.stop(); this.goTo(this.player.step + 1) }
   toEnd() { this.stop(); this.goTo(this.player.total) }
-
-  scrub(event) {
-    this.stop()
-    this.goTo(Number(event.target.value))
-  }
 
   seek(index) {
     this.stop()
@@ -59,6 +54,7 @@ export default class extends Controller {
   stop() {
     this.playing = false
     clearInterval(this.timer)
+    this.render()
   }
 
   setSpeed(event) {
@@ -90,17 +86,12 @@ export default class extends Controller {
 
     view.squares.forEach((sq, i) => {
       const el = this.squareTargets[i]
-      const trail = sq.trail ? "trail" : ""
-      el.className = `flex items-center justify-center border border-gray-500 transition-colors duration-200 ease-out ${sq.bgClass} ${trail}`
+      el.className = `flex items-center justify-center border border-gray-500 transition-colors duration-200 ease-out ${sq.bgClass}`
       el.innerHTML = sq.current ? KNIGHT_SVG : ""
     })
 
-    this.notationTarget.textContent = view.notation
     this.stepNumTarget.textContent = view.step
     this.stepTotalTarget.textContent = view.total
-
-    this.scrubberTarget.value = view.scrubberValue
-    this.scrubberTarget.style.setProperty("--pct", `${view.total === 0 ? 0 : (view.scrubberValue / view.total) * 100}%`)
 
     this.startButtonTarget.disabled = view.atStart
     this.prevButtonTarget.disabled = view.atStart

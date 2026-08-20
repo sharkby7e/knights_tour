@@ -89,30 +89,12 @@
     @apply pointer-events-none bg-accent font-semibold text-zinc-950;
   }
 
-  /* Tour playback panel: scrubber, transport, moves ticker, speed/path
-     toggles. ::-webkit-slider-thumb and other pseudo-elements aren't
-     reachable via Tailwind utilities alone, so these live here (mirrors
-     the .pagy-nav pattern above). */
-  .scrubber {
-    @apply appearance-none w-full h-2 rounded-full bg-zinc-700 cursor-pointer;
-    background: linear-gradient(to right, var(--color-accent) 0%, var(--color-accent) var(--pct, 0%), var(--color-zinc-700) var(--pct, 0%), var(--color-zinc-700) 100%);
-  }
-
-  .scrubber::-webkit-slider-thumb {
-    @apply appearance-none w-4 h-4 rounded-full bg-zinc-200 border-2 border-accent cursor-pointer;
-    margin-top: -5px;
-  }
-
-  .scrubber::-moz-range-thumb {
-    @apply w-3.5 h-3.5 rounded-full bg-zinc-200 border-2 border-accent cursor-pointer;
-  }
-
-  .scrubber::-moz-range-track {
-    @apply h-2 rounded-full bg-zinc-700;
-  }
-
+  /* Tour playback panel: transport, moves ticker, speed/path toggles.
+     ::-webkit-slider-thumb and other pseudo-elements aren't reachable via
+     Tailwind utilities alone, so these live here (mirrors the .pagy-nav
+     pattern above). */
   .transport {
-    @apply flex items-center justify-center gap-3;
+    @apply flex flex-wrap items-center justify-center gap-3;
   }
 
   .transport button {
@@ -158,7 +140,7 @@
      rather than measured — that's what makes the centering math exact. */
   .move-ticker {
     --tick-w: 2.5rem;
-    @apply relative h-9 w-48 mx-auto bg-zinc-900 border border-zinc-700 rounded-lg overflow-hidden;
+    @apply relative h-9 w-48 shrink-0 bg-zinc-900 border border-zinc-700 rounded-lg overflow-hidden;
   }
 
   .move-ticker::before,

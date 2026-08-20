@@ -1,14 +1,4 @@
 <div class="w-64 flex flex-col gap-4">
-  <div class="flex items-baseline justify-between">
-    <span data-tour-playback-target="notation" class="font-title text-2xl text-board-current tabular-nums">&mdash;</span>
-    <span class="text-sm text-zinc-400 tabular-nums">
-      <span data-tour-playback-target="stepNum">0</span> / <span data-tour-playback-target="stepTotal"><%= tour.moves.size %></span>
-    </span>
-  </div>
-
-  <input type="range" class="scrubber" min="0" max="<%= tour.moves.size %>" value="<%= tour.moves.size %>" step="1"
-         data-tour-playback-target="scrubber" data-action="input->tour-playback#scrub" aria-label="Move scrubber">
-
   <div class="transport">
     <button type="button" title="Jump to start" aria-label="Jump to start"
             data-tour-playback-target="startButton" data-action="click->tour-playback#toStart">
@@ -33,7 +23,12 @@
     </button>
   </div>
 
-  <%= render "tours/move_ticker", target_prefix: "tour-playback" %>
+  <div class="flex items-center justify-center gap-2">
+    <%= render "tours/move_ticker", target_prefix: "tour-playback" %>
+    <p class="shrink-0 text-xs text-zinc-400 tabular-nums">
+      <span data-tour-playback-target="stepNum">0</span>/<span data-tour-playback-target="stepTotal"><%= tour.moves.size %></span>
+    </p>
+  </div>
 
   <div class="flex items-center justify-between gap-3">
     <span class="text-xs uppercase tracking-wide text-zinc-500">Speed</span>
@@ -50,9 +45,4 @@
     <button type="button" class="toggle on" aria-label="Toggle path line" aria-pressed="true"
             data-tour-playback-target="pathToggle" data-action="click->tour-playback#togglePath"></button>
   </div>
-
-  <%= link_to tours_path, class: "flex items-center gap-1 text-sm text-zinc-400 hover:text-accent transition-colors duration-150" do %>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M15 18l-6-6 6-6"/></svg>
-    All tours
-  <% end %>
 </div>
