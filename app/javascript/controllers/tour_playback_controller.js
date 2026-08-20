@@ -26,8 +26,8 @@ export default class extends Controller {
     this.stop()
   }
 
-  toStart() { this.stop(); this.goTo(0) }
-  prev() { this.stop(); this.goTo(this.player.step - 1) }
+  toStart() { this.stop(); this.goTo(1) }
+  prev() { this.stop(); this.goTo(Math.max(1, this.player.step - 1)) }
   next() { this.stop(); this.goTo(this.player.step + 1) }
   toEnd() { this.stop(); this.goTo(this.player.total) }
 
@@ -41,7 +41,7 @@ export default class extends Controller {
   }
 
   play() {
-    if (this.player.atEnd) this.player.goTo(0)
+    if (this.player.atEnd) this.player.goTo(1)
     this.playing = true
     clearInterval(this.timer)
     this.timer = setInterval(() => {
@@ -72,7 +72,7 @@ export default class extends Controller {
 
   keydown(event) {
     if (event.key === "ArrowRight") { this.stop(); this.goTo(this.player.step + 1) }
-    else if (event.key === "ArrowLeft") { this.stop(); this.goTo(this.player.step - 1) }
+    else if (event.key === "ArrowLeft") { this.stop(); this.goTo(Math.max(1, this.player.step - 1)) }
     else if (event.key === " ") { event.preventDefault(); this.togglePlay() }
   }
 
@@ -93,8 +93,9 @@ export default class extends Controller {
     this.stepNumTarget.textContent = view.step
     this.stepTotalTarget.textContent = view.total
 
-    this.startButtonTarget.disabled = view.atStart
-    this.prevButtonTarget.disabled = view.atStart
+    const atFirstMove = this.player.step <= 1
+    this.startButtonTarget.disabled = atFirstMove
+    this.prevButtonTarget.disabled = atFirstMove
     this.nextButtonTarget.disabled = view.atEnd
     this.endButtonTarget.disabled = view.atEnd
 
