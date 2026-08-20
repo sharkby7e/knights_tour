@@ -1,7 +1,24 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title><%= content_for(:title) || "A Knight's Tour" %></title>
+    <% page_title = content_for(:title) || "A Knight's Tour" %>
+    <% page_description = content_for(:description) || "Play the Knight's Tour puzzle on a chessboard — solve it, save your run, and replay it move by move." %>
+    <% page_image = "#{request.base_url}/icon.png" %>
+
+    <title><%= page_title %></title>
+    <meta name="description" content="<%= page_description %>">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="<%= page_title %>">
+    <meta property="og:description" content="<%= page_description %>">
+    <meta property="og:image" content="<%= page_image %>">
+    <meta property="og:url" content="<%= request.original_url %>">
+
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="<%= page_title %>">
+    <meta name="twitter:description" content="<%= page_description %>">
+    <meta name="twitter:image" content="<%= page_image %>">
+
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="application-name" content="Knights Tour">

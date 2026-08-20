@@ -107,6 +107,14 @@ RSpec.describe "Tours", type: :request do
       ids = doc.css("[data-tour-id]").map { |el| el["data-tour-id"] }
       expect(ids).to eq([ newer.id.to_s, older.id.to_s ])
     end
+
+    it "sets a page title and description distinct from the default" do
+      get tours_path
+
+      doc = Nokogiri::HTML5.parse(response.body)
+      expect(doc.at_css("title").text).to eq("Saved Tours – A Knight's Tour")
+      expect(doc.at_css("meta[name=description]")["content"]).to include("saved")
+    end
   end
 
   describe "GET /" do
@@ -134,6 +142,19 @@ RSpec.describe "Tours", type: :request do
       doc = Nokogiri::HTML5.fragment(response.body)
       expect(doc.at_css(".move-ticker")).to be_present
     end
+
+    it "sets description and Open Graph meta tags for link previews" do
+      get root_path
+
+      doc = Nokogiri::HTML5.parse(response.body)
+      expect(doc.at_css("title").text).to eq("A Knight's Tour")
+      expect(doc.at_css("meta[name=description]")["content"]).to be_present
+      expect(doc.at_css("meta[property='og:title']")["content"]).to eq("A Knight's Tour")
+      expect(doc.at_css("meta[property='og:description']")["content"]).to be_present
+      expect(doc.at_css("meta[property='og:image']")["content"]).to eq("#{request.base_url}/icon.png")
+      expect(doc.at_css("meta[property='og:url']")["content"]).to eq(root_url)
+      expect(doc.at_css("meta[name='twitter:card']")["content"]).to eq("summary")
+    end
   end
 
   describe "GET /tours/:id" do
@@ -152,6 +173,16 @@ RSpec.describe "Tours", type: :request do
 
       doc = Nokogiri::HTML5.fragment(response.body)
       expect(doc.at_css("[data-tour-playback-target='stepTotal']").text).to eq("64")
+    end
+
+    it "sets a title and description reflecting the tour's completion status" do
+      tour = create(:tour, :complete)
+
+      get tour_path(tour)
+
+      doc = Nokogiri::HTML5.parse(response.body)
+      expect(doc.at_css("title").text).to include("Complete")
+      expect(doc.at_css("meta[name=description]")["content"]).to include("64")
     end
 
     it "shows the move count for a partial tour" do
