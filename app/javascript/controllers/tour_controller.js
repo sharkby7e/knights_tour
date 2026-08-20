@@ -53,7 +53,7 @@ export default class extends Controller {
       const el = this.squareTargets[i]
       const interactive = view.legal ? "cursor-pointer hover:brightness-110 hover:scale-105" : ""
       const landing = view.current ? "animate-pop" : ""
-      el.className = `w-12 h-12 lg:w-28 lg:h-28 flex items-center justify-center border border-gray-500 transition-colors duration-200 ease-out ${view.bgClass} ${interactive} ${landing}`
+      el.className = `flex items-center justify-center border border-gray-500 transition-colors duration-200 ease-out ${view.bgClass} ${interactive} ${landing}`
       el.innerHTML = view.current ? KNIGHT_SVG : ""
     })
 
