@@ -1,3 +1,8 @@
+<% move_count = @tour.moves.size %>
+<% complete = move_count == 64 %>
+<% content_for :title, "#{complete ? "Complete" : "Incomplete"} Knight's Tour – A Knight's Tour" %>
+<% content_for :description, "Replay this #{complete ? "complete" : "incomplete"} Knight's Tour move by move — #{move_count} of 64 squares visited." %>
+
 <div class="h-full w-full flex flex-col items-center justify-center touch-manipulation"
      data-controller="tour-playback"
      data-tour-playback-moves-value="<%= @tour.moves.pluck(:square).to_json %>"

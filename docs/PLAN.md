@@ -1,58 +1,51 @@
 # Context
 
-`tours#show` (`app/views/tours/show.html.erb`) is currently a static page: a full path drawn all at once over the board (`_board.html.erb` + `_board_path.html.erb`, shared with the index cards), a move count, and a status pill. There's no way to watch a saved tour unfold move by move.
+Link previews for `sidquinsaat.com` on chat/social platforms (iMessage, Slack, Facebook, etc.) are showing wrong content — leftover from whatever the domain hosted before this app. The app currently ships zero Open Graph or Twitter Card meta tags and no per-page `<meta name="description">`; every page shares the same generic `<title>`. Without real tags, crawlers fall back to guessing, and platforms are also independently serving a stale cached preview from the old site regardless of what's live now.
 
-A design prototype for this was built as a Claude artifact ("Tour Playback") and reviewed with the user. It mocks a scrubber, transport buttons (start/prev/play-pause/next/end), a sliding "moves ticker" that keeps the current move centered and is click-to-seek, a speed toggle, and a path-line show/hide toggle. The mockup also included two other views (a redesigned tours index and a live-play redesign) — **those are out of scope here**; only the interactive show/playback page and one small piece of the live `/` play page change in this plan.
+This plan adds real per-page title/description/OG/Twitter tags so there's a correct source of truth going forward. Forcing platforms to drop their *already-cached* stale preview (via Facebook's Sharing Debugger, Twitter's Card Validator, etc.) is a manual follow-up outside this plan — code changes alone can't bust an existing cache.
 
 Decisions made with the user before planning this:
-- **Scope**: `tours#show` gets the full playback UI (scrubber, transport, ticker+count). The live `/` play page (`app/views/tours/new.html.erb`, driven by `tour_controller.js`) gets *only* its "Visited Squares" box swapped for the same ticker+count combo — no other changes there.
-- **Initial state**: opening a saved tour's show page starts **fully drawn at the end** (matches what's shipped today), not empty at step 0 like the mockup. Scrubbing/rewinding from there is how you replay it.
-- **Path styling**: keep the already-shipped animated cyan/magenta pulsing path line (`_board_path.html.erb`, also used on index cards) rather than the mockup's flat muted-green line — but make it more prominent: brighter cyan, stronger pulse.
+- **og:image**: reuse the existing 512×512 `public/icon.png` — no new asset design pass. `twitter:card` is `summary` (square-image card) rather than `summary_large_image`, which expects a wider image.
+- **Per-page wiring**: `content_for(:title)` / `content_for(:description)` set on all three views (`new`, `index`, `show`); the layout keeps sane site-wide defaults for both so a future view that omits them doesn't ship blank tags.
+- **Show page copy**: description reflects live tour state (move count + complete/incomplete), reusing `_status_pill.html.erb`'s existing `moves.size == 64` check rather than adding a new `Tour` model method for a single call site.
 
 # Progress
 
-- [x] 1. Extract `KNIGHT_SVG` into a shared module
-- [x] 2. Brighten/strengthen the path-line pulse
-- [x] 3. `TourPlayer` — step-cursor over an ordered list of squares
-- [x] 4. `ticker_view.js` + `playback_view.js` — pure view-model layer
-- [x] 5. Show page playback UI — partial, CSS, controller, `show.html.erb`
-- [x] 6. Wire ticker+count into the live `/` play page
+- [x] 1. Layout: description/OG/Twitter meta tags + per-page `content_for(:title)`/`content_for(:description)` on `new`, `index`, `show`
 
 # Plan
 
-### 1. Extract `KNIGHT_SVG` into a shared module — shipped
+### 1. Layout: description/OG/Twitter meta tags + per-page content_for wiring — shipped
 
-Pure refactor, no behavior change. Moved the inline `KNIGHT_SVG` template literal out of `app/javascript/controllers/tour_controller.js` into `app/javascript/game/knight_svg.js`, exporting it; `tour_controller.js` imports it. `tour_playback_controller.js` (step 8) will need the same SVG, so this avoids a second copy. No new spec — existing `node --test` (25 examples) and `bundle exec rspec` (43 examples) stayed green throughout, proving no regression. `pin_all_from "app/javascript/game", under: "#game"` in `config/importmap.rb` already covers new files in that directory, so no importmap changes were needed. See `4b23b9d`.
+`app/views/layouts/application.html.erb` grows a `page_title`/`page_description` local (falling back to site-wide defaults) and emits `<meta name="description">`, `og:type`/`og:title`/`og:description`/`og:image`/`og:url`, and `twitter:card`/`twitter:title`/`twitter:description`/`twitter:image`. `og:image`/`twitter:image` resolve to an absolute URL (`request.base_url` + `/icon.png`) since these tags must be crawlable outside the app's own host context.
 
-### 2. Brighten/strengthen the path-line pulse — shipped
+Each view sets `content_for(:title)` and `content_for(:description)`:
+- `new.html.erb` (root/play page): the primary link-shared page, gets an explicit description rather than relying on the layout default.
+- `index.html.erb`: "Saved Tours" title, description about browsing/filtering saved tours.
+- `show.html.erb`: title/description reflect the specific tour's move count and complete/incomplete status.
 
-`_board_path.html.erb`'s base polyline is cyan and wider (`stroke-width="4.5"`); the pulsing magenta polyline on top of it is narrower (`3.5`) — so cyan is only ever meant to show as a thin rim around the magenta, never across the full stroke. Bumped the cyan hex from `#22d3ee` to a brighter `#3df3ff`. In `app/assets/tailwind/application.css`, first pass dropped the pulse's opacity floor to `0.3` and sped the cycle up to `1.4s` — too strong: transparent enough for the cyan underneath to show across its full width instead of just the rim, and too frantic. Settled on a `0.65` opacity floor (still a punchier dip than the original `0.85`) at the original `3s` cycle speed — stronger without over-exposing the cyan or feeling rushed. Confirmed visually via `bin/dev`. No spec (pure CSS/color tweak).
+**Spec** (`spec/requests/tours_spec.rb`, extending the existing `GET /`, `GET /tours`, `GET /tours/:id` describe blocks — kept to one representative assertion per page per this repo's minimal-spec convention, not a full tag-by-tag matrix on every page): root page checks the full complement of tags (title, description, all four `og:*`, `twitter:card`) since that's the page the "wrong preview" bug is actually about; index and show pages each get one test confirming their title/description differ from the default and reflect page-specific content (tour completion status for show).
 
-### 3. `TourPlayer` — step-cursor over an ordered list of squares — shipped
+Built as planned, no deviations.
 
-`app/javascript/game/tour_player.js`. Wraps a fixed `Square[]` (the tour's moves, already validated/persisted — no legality checking needed, unlike `KnightTourGame`) with a `step` cursor from `0` to `total`: `total`, `step`, `current` (the `Square` at `step - 1`, or `null` at step 0), `visited(square)`, `atStart`/`atEnd`, `goTo(n)` (clamps to `[0, total]`), `notations` (full ordered notation list, for the ticker).
-
-**Spec** (kept to essentials per this repo's minimal-JS-testing convention, not a boundary-by-boundary matrix) — `spec/javascript/game/tour_player.test.js`: `current`/`visited` reflect the step cursor mid-tour; `goTo` clamps at both ends and flips `atStart`/`atEnd` accordingly.
-
-**Verify**: `node --test` red (module not found) → implement → green (27 examples). `bundle exec rspec` (43) and `bin/rubocop` stayed green throughout — no Ruby/Rails touched by this step.
-
-### 4. `ticker_view.js` + `playback_view.js` — pure view-model layer — shipped
-
-Built as planned: `ticker_view.js`'s `tickerView(notations, currentIndex)` and `playback_view.js`'s `playbackView(tourPlayer, showPath)`, the latter built around a local `playbackSquareView` parallel to `board_view.js`'s `squareView` but adapted to `TourPlayer`. No deviations from the plan's design. `node --test` red → green (32 examples); `bundle exec rspec`/`bin/rubocop` untouched.
-
-### 5. Show page playback UI — partial, CSS, controller, `show.html.erb` — shipped
-
-Built as planned, then hand-tested and tuned with the user through several rounds: fixed a missing `.transport { display: flex }` rule (buttons were stacking vertically); the board grid switched from relying on each square's own `w-10/lg:w-24` to size the grid intrinsically (works fine on the plain interactive board, but broke — non-square cells, misaligned path line — once an absolutely-positioned SVG sibling entered the picture) to a definite `w-80 lg:w-[48rem]` + `aspect-square` container, matching the sizing technique `_board.html.erb` already uses elsewhere; transport buttons, scrubber, ticker, and speed/path toggles all sized up from the initial pass; speed buttons switched from `flex-1` to fixed `w-10 h-10` squares; the ticker shrunk and given a `backdrop-filter: blur` + `mask-image` edge taper (a "wheel" look, beyond the mockup's plain gradient fade). Request specs green (6 examples covering the moves data attribute, scrubber max, back link, and the updated move-count/pill assertions); `bin/rubocop` clean. No automated coverage of the interactive controller (matches this repo's convention — `tour_controller.js` has no test file either); verified entirely by hand in the browser. Followup refactor: `show.html.erb` split into `_playback_board.html.erb` and `_playback_controls.html.erb` partials (thin composition, one `render` each) ahead of step 6's `tour_controller.js` reuse; the ticker's DOM-rendering (tile building + centering-transform math) pulled out of `tour_playback_controller.js` into a shared `app/javascript/game/ticker_dom.js` (`renderTicker(trackEl, windowEl, tiles, onSeek = null)`) so step 6 doesn't duplicate it — no spec, matching the existing no-test convention for controller-level DOM code.
-
-### 6. Wire ticker+count into the live `/` play page — shipped
-
-Built as planned: `new.html.erb`'s `#visited_count` box replaced with `render "tours/move_ticker", target_prefix: "tour"` (passive — `renderTicker` called with no `onSeek`) plus an `N / <%= Tour::FULL_TOUR_LENGTH %>` count readout. `renderState` in `tour_presenter.js` grew a `ticker` field via `ticker_view.js`. `node --test` red → green (33 examples); `bundle exec rspec` red → green (47); `bin/rubocop` clean throughout.
-
-**Followup polish pass** (hand-tested/tuned with the user across both pages, `c166ccb`): ticker's current-tile highlight became a fixed translucent "wheel" window behind the sliding track (was coloring the moving tile) plus a `backdrop-filter`/`mask-image` edge taper, hidden until a move exists; live-play status line shows the running move count (not a fraction) once solving starts, with a horizontal roll-in animation (`--animate-count-roll`) matching the ticker's own motion direction — the now-redundant `N / 64` readout and its `visitedCount` wiring were removed entirely; board sizing, corner radius, and row gaps were unified between the show and live-play pages (they'd drifted during independent sizing passes) — the show page's title moved out of the flex flow (`absolute`) so it can't influence board sizing, and its controls panel width matched to the live page's `w-64` to fix a horizontal centering shift; "All tours" relocated into the controls panel; header/footer padding breakpoint changed `sm:` → `lg:` to match the rest of the page.
+**Verify**: `bundle exec rspec` red (3 new assertions failing against unchanged views) → implement → green (48 examples total). `bin/rubocop` clean throughout.
 
 ---
 
-Each step lands as its own commit once its spec is green (per this repo's TDD-step-by-step convention) — no batching multiple steps into one commit.
+# Tour Playback UI (complete, kept for history)
+
+Added an interactive playback UI to `tours#show` (scrubber, transport buttons, a sliding click-to-seek moves ticker, speed toggle, path-line show/hide) matching a design prototype reviewed with the user, plus reused the ticker+count on the live `/` play page.
+
+- **`KNIGHT_SVG` extraction**: moved out of `tour_controller.js` into `app/javascript/game/knight_svg.js` so the new playback controller could reuse it — pure refactor, no behavior change.
+- **Path-line pulse**: brightened the cyan rim (`#22d3ee` → `#3df3ff`) and deepened the magenta pulse's opacity floor (`0.85` → `0.65`) at the original `3s` cycle, after an over-strong first pass made the cyan bleed across the full stroke.
+- **`TourPlayer`** (`app/javascript/game/tour_player.js`): step-cursor over a fixed, already-valid `Square[]` — no legality checking needed (unlike `KnightTourGame`). Exposes `step`/`current`/`visited`/`atStart`/`atEnd`/`goTo`/`notations`.
+- **`ticker_view.js` + `playback_view.js`**: pure view-model layer — `tickerView(notations, currentIndex)` and `playbackView(tourPlayer, showPath)`.
+- **Show page UI**: `_playback_board.html.erb` + `_playback_controls.html.erb` partials, `tour_playback_controller.js`, CSS. Board sizing switched to a definite `w-80 lg:w-[48rem]` + `aspect-square` container (intrinsic grid sizing broke once an absolutely-positioned SVG path sibling entered the picture). Ticker DOM-rendering (tile building, centering-transform math) factored into a shared `app/javascript/game/ticker_dom.js` (`renderTicker`) so the live-play page could reuse it without duplication.
+- **Live `/` play page**: `#visited_count` box replaced with the same ticker partial (passive — no `onSeek`) plus an `N / 64` count; later polish removed the redundant fraction in favor of a rolling move-count animation, matching a "wheel" highlight/taper treatment added to the ticker on both pages. Board sizing, corner radius, row gaps, and controls-panel width unified between the two pages after drifting during independent sizing passes.
+
+Test posture matched this repo's conventions throughout: `node --test` (33 examples) and `bundle exec rspec` (47) both green, `bin/rubocop` clean; no automated coverage of the interactive Stimulus controllers or DOM-rendering helpers (`tour_controller.js` already had none) — verified by hand in the browser with the user across several tuning rounds.
+
+See `963f8fe` and its constituent commits for the full history.
 
 ---
 

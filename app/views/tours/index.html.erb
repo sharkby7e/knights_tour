@@ -1,3 +1,6 @@
+<% content_for :title, "Saved Tours – A Knight's Tour" %>
+<% content_for :description, "Browse saved Knight's Tour runs, filter by complete or incomplete, and replay any of them move by move." %>
+
 <div class="w-full max-w-7xl min-[104rem]:max-w-[104rem] flex flex-col items-center self-start">
   <nav class="pill-filters inline-flex w-full sm:w-auto gap-1 rounded-full border border-zinc-700/60 bg-zinc-900/60 p-1 mb-6">
     <% { nil => "All", "complete" => "Complete", "incomplete" => "Incomplete" }.each do |status, label| %>
