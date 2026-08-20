@@ -1,0 +1,21 @@
+<div class="transport">
+  <button type="button" title="Jump to start" aria-label="Jump to start"
+          data-<%= target_prefix %>-target="startButton" data-action="click-><%= target_prefix %>#toStart">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v16"/><path d="M18 6 8 12l10 6V6Z"/></svg>
+  </button>
+  <button type="button" title="Previous move" aria-label="Previous move"
+          data-<%= target_prefix %>-target="prevButton" data-action="click-><%= target_prefix %>#prev">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+
+  <%= yield %>
+
+  <button type="button" title="Next move" aria-label="Next move"
+          data-<%= target_prefix %>-target="nextButton" data-action="click-><%= target_prefix %>#next">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+  </button>
+  <button type="button" title="Jump to end" aria-label="Jump to end"
+          data-<%= target_prefix %>-target="endButton" data-action="click-><%= target_prefix %>#toEnd">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 4v16"/><path d="M6 6l10 6-10 6V6Z"/></svg>
+  </button>
+</div>
