@@ -1,22 +1,22 @@
 <% content_for :description, "Play the Knight's Tour puzzle on a chessboard — solve it, save your run, and replay it move by move." %>
 
-<div class="h-full w-full flex flex-col items-center justify-center space-y-6 touch-manipulation" data-controller="tour">
+<div class="h-full w-full flex flex-col items-center justify-center touch-manipulation"
+     data-controller="tour"
+     data-action="keydown@window->tour#keydown">
   <div class="flex flex-col lg:flex-row gap-y-3 lg:gap-x-16 items-center">
-    <div class="flex flex-col items-center gap-2">
-      <div id="board" class="relative grid grid-rows-8 grid-cols-8 aspect-square w-[min(90vw,24rem)] lg:w-[56rem] shrink-0 rounded-lg overflow-hidden shadow-lg">
-        <% Square.all.each do |square| %>
-          <% dark = (square.x + square.y).odd? %>
-          <div id="<%= square.dom_id %>"
-               class="flex items-center justify-center border border-gray-500 transition-colors duration-200 ease-out <%= dark ? "bg-board-dark" : "bg-board-light" %>"
-               data-tour-target="square"
-               data-square-notation="<%= square.notation %>"
-               data-action="click->tour#move"></div>
-        <% end %>
-        <svg viewBox="0 0 100 100" class="absolute inset-0 w-full h-full pointer-events-none" data-tour-target="pathSvg"></svg>
-      </div>
+    <div id="board" class="relative grid grid-rows-8 grid-cols-8 aspect-square w-[min(90vw,24rem)] lg:w-[56rem] shrink-0 rounded-lg overflow-hidden shadow-lg">
+      <% Square.all.each do |square| %>
+        <% dark = (square.x + square.y).odd? %>
+        <div id="<%= square.dom_id %>"
+             class="flex items-center justify-center border border-gray-500 transition-colors duration-200 ease-out <%= dark ? "bg-board-dark" : "bg-board-light" %>"
+             data-tour-target="square"
+             data-square-notation="<%= square.notation %>"
+             data-action="click->tour#move"></div>
+      <% end %>
+      <svg viewBox="0 0 100 100" class="absolute inset-0 w-full h-full pointer-events-none" data-tour-target="pathSvg"></svg>
     </div>
 
-    <div class="w-64 flex flex-col gap-3 lg:gap-6 items-center">
+    <div class="w-64 flex flex-col gap-3 lg:gap-6">
       <p data-tour-target="status" class="h-10 lg:h-24 lg:w-full flex items-center justify-center lg:text-center text-lg lg:text-3xl text-zinc-300 whitespace-nowrap lg:whitespace-normal overflow-hidden">Choose a starting square</p>
 
       <div class="transport">
@@ -51,7 +51,7 @@
         </p>
       </div>
 
-      <div class="flex items-center justify-between gap-3 w-full">
+      <div class="flex items-center justify-between gap-3">
         <span class="text-xs uppercase tracking-wide text-zinc-500">Show path line</span>
         <button type="button" class="toggle on" aria-label="Toggle path line" aria-pressed="true"
                 data-tour-target="pathToggle" data-action="click->tour#togglePath"></button>
@@ -59,7 +59,7 @@
 
       <button type="button" data-tour-target="saveButton" data-action="click->tour#save" disabled
               title="Save"
-              class="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 disabled:hover:bg-zinc-700 text-zinc-200 w-9 h-9 flex items-center justify-center rounded-lg transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed">
+              class="self-center bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 disabled:hover:bg-zinc-700 text-zinc-200 w-9 h-9 flex items-center justify-center rounded-lg transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25v9.75a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5V6A1.5 1.5 0 0 1 6 4.5h9.75L19.5 8.25Z" />
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 4.5v3.75a.75.75 0 0 1-.75.75H8.25a.75.75 0 0 1-.75-.75V4.5" />

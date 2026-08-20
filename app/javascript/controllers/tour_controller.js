@@ -32,6 +32,11 @@ export default class extends Controller {
     this.render()
   }
 
+  keydown(event) {
+    if (event.key === "ArrowRight") this.next()
+    else if (event.key === "ArrowLeft") this.prev()
+  }
+
   togglePath() {
     this.showPath = !this.showPath
     this.pathToggleTarget.classList.toggle("on", this.showPath)
