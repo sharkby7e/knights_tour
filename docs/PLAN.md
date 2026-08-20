@@ -17,7 +17,7 @@ Decisions made with the user before planning this:
 - [x] 1. `KnightTourGame` gains undo/redo-stack semantics (`prev`/`next`/`toStart`/`toEnd`/`goTo`/`atStart`/`atEnd`/`fullNotationPath`)
 - [x] 2. `tour_presenter.js`: ticker reflects full history, expose `atStart`/`atEnd`
 - [x] 3. Extract shared path-line math into `path_svg.js`, refactor playback controller to use it
-- [ ] 4. CSS: danger token + `.transport button.restart`
+- [x] 4. CSS: danger token + `.transport button.restart`
 - [ ] 5. `new.html.erb`: transport row, path toggle, SVG overlay, remove Undo
 - [ ] 6. `tour_controller.js`: wire new targets/actions, remove Undo, render path
 
@@ -75,7 +75,7 @@ Built as planned, no deviations. Confirmed `renderPath`'s output is byte-identic
 
 **Verify**: `node --test spec/javascript/game/path_svg.test.js` red (module not found) → implement → green (2 examples). Full `node --test` suite 45/45, `bundle exec rspec` 48/48, `bin/rubocop` clean.
 
-### 4. CSS: danger token + `.restart` transport button
+### 4. CSS: danger token + `.restart` transport button — shipped
 
 `app/assets/tailwind/application.css` — add theme tokens:
 ```css
@@ -83,6 +83,8 @@ Built as planned, no deviations. Confirmed `renderPath`'s output is byte-identic
 --color-danger-hover: #963a35;
 ```
 A brick/terracotta red, deliberately distinct from `--color-board-visited` (`#bf7575`, lighter/pinker — "already visited," a gentler signal) and `--color-status-incomplete` (`#d9b23c`, amber — different hue), staying within the app's desaturated palette family. Add `.transport button.restart` (background + hover, sized like `.transport button.play` — larger than the four flanking buttons — but with a single static icon, no play/pause swap).
+
+Built as planned, no deviations. No spec (styling only, per convention). Verified by inspection that `bg-danger`/`bg-danger-hover` follow the exact same `--color-*` → utility-class pattern Tailwind v4 already generates for `bg-accent`/`bg-accent-hover` immediately above it in `@theme`.
 
 ### 5. `new.html.erb`: transport row, path toggle, SVG overlay, remove Undo
 
