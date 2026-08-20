@@ -1,19 +1,14 @@
-<div class="h-full w-full flex flex-col items-center justify-center gap-6 py-4"
+<div class="relative h-full w-full flex flex-col items-center justify-center touch-manipulation"
      data-controller="tour-playback"
      data-tour-playback-moves-value="<%= @tour.moves.pluck(:square).to_json %>"
      data-action="keydown@window->tour-playback#keydown">
 
-  <%= link_to tours_path, class: "self-start -mb-2 flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-200 transition-colors duration-150" do %>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M15 18l-6-6 6-6"/></svg>
-    All tours
-  <% end %>
-
-  <div class="flex items-center gap-3">
-    <h1 class="font-title text-2xl text-zinc-300 font-semibold">Tour #<%= @tour.id %></h1>
+  <div class="absolute top-0 inset-x-0 flex items-center justify-center gap-3">
+    <h1 class="font-title text-lg text-zinc-300 font-semibold">Tour #<%= @tour.id %></h1>
     <%= render "tours/status_pill", tour: @tour %>
   </div>
 
-  <div class="flex flex-col lg:flex-row gap-8 items-center lg:items-start">
+  <div class="flex flex-col lg:flex-row gap-x-10 gap-y-6 items-center">
     <%= render "tours/playback_board" %>
     <%= render "tours/playback_controls", tour: @tour %>
   </div>

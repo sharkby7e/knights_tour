@@ -6,7 +6,7 @@ import { KNIGHT_SVG } from "#game/knight_svg"
 import { renderTicker } from "#game/ticker_dom"
 
 export default class extends Controller {
-  static targets = [ "square", "visitedCount", "status", "undoButton", "saveButton", "tickerWindow", "tickerTrack" ]
+  static targets = [ "square", "status", "undoButton", "saveButton", "tickerWindow", "tickerTrack" ]
 
   connect() {
     this.game = new KnightTourGame()
@@ -53,14 +53,20 @@ export default class extends Controller {
       const el = this.squareTargets[i]
       const interactive = view.legal ? "cursor-pointer hover:brightness-110 hover:scale-105" : ""
       const landing = view.current ? "animate-pop" : ""
-      el.className = `w-10 h-10 lg:w-24 lg:h-24 flex items-center justify-center border border-gray-500 transition-colors duration-200 ease-out ${view.bgClass} ${interactive} ${landing}`
+      el.className = `w-12 h-12 lg:w-28 lg:h-28 flex items-center justify-center border border-gray-500 transition-colors duration-200 ease-out ${view.bgClass} ${interactive} ${landing}`
       el.innerHTML = view.current ? KNIGHT_SVG : ""
     })
 
-    const statusColor = state.statusVariant === "won" ? "text-board-legal" : state.statusVariant === "stuck" ? "text-board-visited" : ""
-    this.statusTarget.className = `h-7 flex items-center justify-center text-xl whitespace-nowrap ${statusColor}`
-    this.visitedCountTarget.textContent = state.visitedCount
+    const counting = state.statusVariant === null && this.game.visitedCount > 0
+    const size = counting ? "text-3xl" : "text-lg"
+    this.statusTarget.className = `h-10 flex items-center justify-center whitespace-nowrap overflow-hidden text-zinc-100 ${size}`
     this.statusTarget.textContent = state.status
+
+    if (counting) {
+      this.statusTarget.classList.remove("animate-count-roll")
+      void this.statusTarget.offsetWidth
+      this.statusTarget.classList.add("animate-count-roll")
+    }
     this.undoButtonTarget.disabled = state.undoDisabled
     this.saveButtonTarget.disabled = state.saveDisabled
 

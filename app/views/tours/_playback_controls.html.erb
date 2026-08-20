@@ -1,4 +1,4 @@
-<div class="w-full max-w-sm flex flex-col gap-5">
+<div class="w-64 flex flex-col gap-4">
   <div class="flex items-baseline justify-between">
     <span data-tour-playback-target="notation" class="font-title text-2xl text-board-current tabular-nums">&mdash;</span>
     <span class="text-sm text-zinc-400 tabular-nums">
@@ -50,4 +50,9 @@
     <button type="button" class="toggle on" aria-label="Toggle path line" aria-pressed="true"
             data-tour-playback-target="pathToggle" data-action="click->tour-playback#togglePath"></button>
   </div>
+
+  <%= link_to tours_path, class: "flex items-center gap-1 text-sm text-zinc-400 hover:text-accent transition-colors duration-150" do %>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M15 18l-6-6 6-6"/></svg>
+    All tours
+  <% end %>
 </div>

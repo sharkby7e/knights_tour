@@ -15,11 +15,10 @@ export function attemptMove(game, notation) {
 
 export function renderState(game) {
   const statusVariant = game.won ? "won" : game.stuck ? "stuck" : null
-  const status = statusVariant === "won" ? "You won!" : statusVariant === "stuck" ? "Stuck! Restart?" : game.visitedCount === 0 ? "Choose a starting square" : ""
+  const status = statusVariant === "won" ? "You won!" : statusVariant === "stuck" ? "Stuck! Restart?" : game.visitedCount === 0 ? "Choose a starting square" : `${game.visitedCount}`
   const notations = game.notationPath()
   return {
     squares: boardView(game),
-    visitedCount: game.visitedCount,
     status,
     statusVariant,
     undoDisabled: game.visitedCount === 0,

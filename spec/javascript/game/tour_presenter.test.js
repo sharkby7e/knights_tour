@@ -70,6 +70,14 @@ test("renderState reports no status variant mid-game", () => {
   assert.equal(state.statusVariant, null)
 })
 
+test("renderState shows the move count mid-game instead of a blank status", () => {
+  const game = new KnightTourGame()
+  attemptMove(game, "a1")
+  attemptMove(game, "c2")
+  const state = renderState(game)
+  assert.equal(state.status, "2")
+})
+
 test("renderState includes ticker data reflecting the current moves", () => {
   const game = new KnightTourGame()
   assert.deepEqual(renderState(game).ticker, [])

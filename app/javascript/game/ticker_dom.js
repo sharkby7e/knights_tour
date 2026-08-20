@@ -13,6 +13,8 @@ export function renderTicker(trackEl, windowEl, tiles, onSeek = null) {
   }
 
   const currentIndex = tiles.findIndex(t => t.current)
+  windowEl.querySelector(".tick-highlight")?.classList.toggle("hidden", currentIndex === -1)
+
   const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
   const tickW = TICK_W_REM * rootPx
   const windowWidth = windowEl.clientWidth

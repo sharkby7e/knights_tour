@@ -45,11 +45,17 @@
 
   --animate-pop: pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
   --animate-pulse-line: pulse-line 3s ease-in-out infinite;
+  --animate-count-roll: count-roll 220ms cubic-bezier(0.34, 1.2, 0.4, 1);
 }
 
 @keyframes pop {
   0% { transform: scale(0.85); }
   100% { transform: scale(1); }
+}
+
+@keyframes count-roll {
+  from { transform: translateX(65%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
 @keyframes pulse-line {
@@ -93,12 +99,12 @@
   }
 
   .scrubber::-webkit-slider-thumb {
-    @apply appearance-none w-5 h-5 rounded-full bg-zinc-200 border-2 border-accent cursor-pointer;
-    margin-top: -6px;
+    @apply appearance-none w-4 h-4 rounded-full bg-zinc-200 border-2 border-accent cursor-pointer;
+    margin-top: -5px;
   }
 
   .scrubber::-moz-range-thumb {
-    @apply w-4 h-4 rounded-full bg-zinc-200 border-2 border-accent cursor-pointer;
+    @apply w-3.5 h-3.5 rounded-full bg-zinc-200 border-2 border-accent cursor-pointer;
   }
 
   .scrubber::-moz-range-track {
@@ -110,7 +116,7 @@
   }
 
   .transport button {
-    @apply w-12 h-12 rounded-lg border-none bg-zinc-700 text-zinc-200 flex items-center justify-center cursor-pointer transition-colors duration-150;
+    @apply w-9 h-9 rounded-lg border-none bg-zinc-700 text-zinc-200 flex items-center justify-center cursor-pointer transition-colors duration-150;
   }
 
   .transport button:hover {
@@ -130,7 +136,7 @@
   }
 
   .transport button.play {
-    @apply w-16 h-16 bg-accent text-zinc-950;
+    @apply w-12 h-12 bg-accent text-zinc-950;
   }
 
   .transport button.play:hover {
@@ -138,11 +144,11 @@
   }
 
   .transport svg {
-    @apply w-5 h-5;
+    @apply w-3.5 h-3.5;
   }
 
   .transport button.play svg {
-    @apply w-7 h-7;
+    @apply w-5 h-5;
   }
 
   /* Moves ticker: a fixed window with a wider strip of move tiles sliding
@@ -174,6 +180,16 @@
     mask-image: linear-gradient(to left, black, transparent);
   }
 
+  .tick-highlight {
+    @apply absolute top-1/2 left-1/2 rounded pointer-events-none;
+    width: var(--tick-w);
+    height: 2rem;
+    transform: translate(-50%, -50%);
+    background: rgb(234 196 120 / 0.28);
+    border: 1px solid rgb(234 196 120 / 0.55);
+    backdrop-filter: blur(1px) saturate(1.6);
+  }
+
   .move-ticker-track {
     @apply absolute top-0 left-0 h-full flex items-center;
     transition: transform 220ms cubic-bezier(0.34, 1.2, 0.4, 1);
@@ -195,8 +211,7 @@
   }
 
   .tick.current {
-    @apply bg-board-current text-zinc-950 font-bold;
-    transform: scale(1.12);
+    @apply text-zinc-100 font-bold;
   }
 
   .speed-group {
@@ -204,7 +219,7 @@
   }
 
   .speed-btn {
-    @apply w-10 h-10 flex items-center justify-center text-sm tabular-nums rounded-md border border-zinc-700 bg-transparent text-zinc-400 cursor-pointer transition-colors duration-150;
+    @apply w-8 h-8 flex items-center justify-center text-xs tabular-nums rounded-md border border-zinc-700 bg-transparent text-zinc-400 cursor-pointer transition-colors duration-150;
   }
 
   .speed-btn:hover {
@@ -216,12 +231,12 @@
   }
 
   .toggle {
-    @apply relative w-12 h-7 rounded-full bg-zinc-700 border-none cursor-pointer transition-colors duration-150;
+    @apply relative w-9 h-5 rounded-full bg-zinc-700 border-none cursor-pointer transition-colors duration-150;
   }
 
   .toggle::after {
     content: "";
-    @apply absolute top-1 left-1 w-5 h-5 rounded-full bg-zinc-200 transition-transform duration-150;
+    @apply absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-zinc-200 transition-transform duration-150;
   }
 
   .toggle.on {
@@ -229,7 +244,7 @@
   }
 
   .toggle.on::after {
-    transform: translateX(1.25rem);
+    transform: translateX(1rem);
   }
 
   /* Playback's trail wash — an inset box-shadow, not a solid fill, so the
