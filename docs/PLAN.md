@@ -48,6 +48,8 @@ Built as planned, then hand-tested and tuned with the user through several round
 
 Built as planned: `new.html.erb`'s `#visited_count` box replaced with `render "tours/move_ticker", target_prefix: "tour"` (passive — `renderTicker` called with no `onSeek`) plus an `N / <%= Tour::FULL_TOUR_LENGTH %>` count readout. `renderState` in `tour_presenter.js` grew a `ticker` field via `ticker_view.js`. `node --test` red → green (33 examples); `bundle exec rspec` red → green (47); `bin/rubocop` clean throughout.
 
+**Followup polish pass** (hand-tested/tuned with the user across both pages, `c166ccb`): ticker's current-tile highlight became a fixed translucent "wheel" window behind the sliding track (was coloring the moving tile) plus a `backdrop-filter`/`mask-image` edge taper, hidden until a move exists; live-play status line shows the running move count (not a fraction) once solving starts, with a horizontal roll-in animation (`--animate-count-roll`) matching the ticker's own motion direction — the now-redundant `N / 64` readout and its `visitedCount` wiring were removed entirely; board sizing, corner radius, and row gaps were unified between the show and live-play pages (they'd drifted during independent sizing passes) — the show page's title moved out of the flex flow (`absolute`) so it can't influence board sizing, and its controls panel width matched to the live page's `w-64` to fix a horizontal centering shift; "All tours" relocated into the controls panel; header/footer padding breakpoint changed `sm:` → `lg:` to match the rest of the page.
+
 ---
 
 Each step lands as its own commit once its spec is green (per this repo's TDD-step-by-step convention) — no batching multiple steps into one commit.
