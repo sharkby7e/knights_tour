@@ -76,14 +76,9 @@ export default class extends Controller {
 
     const counting = state.statusVariant === null && this.game.visitedCount > 0
     const size = counting ? "text-3xl" : "text-lg lg:text-3xl"
-    this.statusTarget.className = `h-10 lg:h-24 lg:w-64 flex items-center justify-center lg:text-center whitespace-nowrap lg:whitespace-normal overflow-hidden text-zinc-100 ${size}`
+    this.statusTarget.className = `h-10 lg:h-24 lg:w-full flex items-center justify-center lg:text-center whitespace-nowrap lg:whitespace-normal overflow-hidden text-zinc-100 ${size}`
     this.statusTarget.textContent = state.status
 
-    if (counting) {
-      this.statusTarget.classList.remove("animate-count-roll")
-      void this.statusTarget.offsetWidth
-      this.statusTarget.classList.add("animate-count-roll")
-    }
     this.startButtonTarget.disabled = state.atStart
     this.prevButtonTarget.disabled = state.atStart
     this.nextButtonTarget.disabled = state.atEnd
