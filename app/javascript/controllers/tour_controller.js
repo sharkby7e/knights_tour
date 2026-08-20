@@ -8,7 +8,7 @@ import { renderPath } from "#game/path_svg"
 
 export default class extends Controller {
   static targets = [
-    "square", "status", "saveButton", "tickerWindow", "tickerTrack",
+    "square", "status", "saveButton", "tickerWindow", "tickerTrack", "stepNum",
     "pathSvg", "startButton", "prevButton", "nextButton", "endButton", "pathToggle"
   ]
 
@@ -89,6 +89,7 @@ export default class extends Controller {
     this.nextButtonTarget.disabled = state.atEnd
     this.endButtonTarget.disabled = state.atEnd
     this.saveButtonTarget.disabled = state.saveDisabled
+    this.stepNumTarget.textContent = this.game.visitedCount
 
     renderTicker(this.tickerTrackTarget, this.tickerWindowTarget, state.ticker, i => this.seek(i))
     renderPath(this.pathSvgTarget, this.showPath ? this.game.moves : [])

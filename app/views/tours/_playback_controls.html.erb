@@ -30,7 +30,7 @@
   <div class="flex items-center justify-center gap-2">
     <%= render "tours/move_ticker", target_prefix: "tour-playback" %>
     <p class="shrink-0 text-xs text-zinc-400 tabular-nums">
-      <span data-tour-playback-target="stepNum">0</span>/<span data-tour-playback-target="stepTotal"><%= tour.moves.size %></span>
+      <span data-tour-playback-target="stepNum" class="inline-block min-w-[2ch] text-right">0</span>/<span data-tour-playback-target="stepTotal"><%= tour.moves.size %></span>
     </p>
   </div>
 
