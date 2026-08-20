@@ -16,7 +16,7 @@ Decisions made with the user before planning this:
 
 - [x] 1. `KnightTourGame` gains undo/redo-stack semantics (`prev`/`next`/`toStart`/`toEnd`/`goTo`/`atStart`/`atEnd`/`fullNotationPath`)
 - [x] 2. `tour_presenter.js`: ticker reflects full history, expose `atStart`/`atEnd`
-- [ ] 3. Extract shared path-line math into `path_svg.js`, refactor playback controller to use it
+- [x] 3. Extract shared path-line math into `path_svg.js`, refactor playback controller to use it
 - [ ] 4. CSS: danger token + `.transport button.restart`
 - [ ] 5. `new.html.erb`: transport row, path toggle, SVG overlay, remove Undo
 - [ ] 6. `tour_controller.js`: wire new targets/actions, remove Undo, render path
@@ -63,13 +63,17 @@ Built as planned. Two of the new `atStart`/`atEnd` assertions were initially wri
 
 **Verify**: `node --test spec/javascript/game/tour_presenter.test.js` red (5 failures) → implement → green (13 examples). Full `node --test` suite 43/43, `bundle exec rspec` 48/48, `bin/rubocop` clean.
 
-### 3. Extract shared path-line math into `path_svg.js`
+### 3. Extract shared path-line math into `path_svg.js` — shipped
 
 New `app/javascript/game/path_svg.js`, reused by both controllers instead of a third independent copy of the point math (currently duplicated between `_board_path.html.erb`'s ERB and `tour_playback_controller.js`'s inline `renderPath`):
 - `pathPoints(squares)` — pure function, the `(x - 0.5) * 12.5, (8 - y + 0.5) * 12.5` formula, returns the SVG `points` string. Gets a unit spec (pure logic, per this repo's convention).
 - `renderPath(svgEl, squares)` — builds/updates the two `<polyline>`s + current-position dot on a target `<svg>`. DOM-painting, not pure — no spec, per the same convention that already leaves `ticker_dom.js` untested.
 
 Refactor `tour_playback_controller.js` to delegate to this module — behavior-preserving only, no playback-facing change. (`_board_path.html.erb`'s ERB-side duplication is a separate runtime with no shared build step; not addressed here.)
+
+Built as planned, no deviations. Confirmed `renderPath`'s output is byte-identical to the inline version it replaced (same template string, same coordinate math), so the refactor carries no risk beyond what the existing full test suite already covers.
+
+**Verify**: `node --test spec/javascript/game/path_svg.test.js` red (module not found) → implement → green (2 examples). Full `node --test` suite 45/45, `bundle exec rspec` 48/48, `bin/rubocop` clean.
 
 ### 4. CSS: danger token + `.restart` transport button
 
