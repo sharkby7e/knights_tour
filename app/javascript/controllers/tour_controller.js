@@ -4,12 +4,17 @@ import { KnightTourGame } from "#game/knight_tour_game"
 import { attemptMove, renderState } from "#game/tour_presenter"
 import { KNIGHT_SVG } from "#game/knight_svg"
 import { renderTicker } from "#game/ticker_dom"
+import { renderPath } from "#game/path_svg"
 
 export default class extends Controller {
-  static targets = [ "square", "status", "undoButton", "saveButton", "tickerWindow", "tickerTrack" ]
+  static targets = [
+    "square", "status", "saveButton", "tickerWindow", "tickerTrack",
+    "pathSvg", "startButton", "prevButton", "nextButton", "endButton", "pathToggle"
+  ]
 
   connect() {
     this.game = new KnightTourGame()
+    this.showPath = true
     this.render()
   }
 
@@ -17,8 +22,20 @@ export default class extends Controller {
     if (attemptMove(this.game, event.currentTarget.dataset.squareNotation)) this.render()
   }
 
-  undo() {
-    this.game.undo()
+  toStart() { this.game.toStart(); this.render() }
+  prev() { this.game.prev(); this.render() }
+  next() { this.game.next(); this.render() }
+  toEnd() { this.game.toEnd(); this.render() }
+
+  seek(index) {
+    this.game.goTo(index + 1)
+    this.render()
+  }
+
+  togglePath() {
+    this.showPath = !this.showPath
+    this.pathToggleTarget.classList.toggle("on", this.showPath)
+    this.pathToggleTarget.setAttribute("aria-pressed", String(this.showPath))
     this.render()
   }
 
@@ -67,9 +84,13 @@ export default class extends Controller {
       void this.statusTarget.offsetWidth
       this.statusTarget.classList.add("animate-count-roll")
     }
-    this.undoButtonTarget.disabled = state.undoDisabled
+    this.startButtonTarget.disabled = state.atStart
+    this.prevButtonTarget.disabled = state.atStart
+    this.nextButtonTarget.disabled = state.atEnd
+    this.endButtonTarget.disabled = state.atEnd
     this.saveButtonTarget.disabled = state.saveDisabled
 
-    renderTicker(this.tickerTrackTarget, this.tickerWindowTarget, state.ticker)
+    renderTicker(this.tickerTrackTarget, this.tickerWindowTarget, state.ticker, i => this.seek(i))
+    renderPath(this.pathSvgTarget, this.showPath ? this.game.moves : [])
   }
 }

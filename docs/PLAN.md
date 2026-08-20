@@ -19,7 +19,7 @@ Decisions made with the user before planning this:
 - [x] 3. Extract shared path-line math into `path_svg.js`, refactor playback controller to use it
 - [x] 4. CSS: danger token + `.transport button.restart`
 - [x] 5. `new.html.erb`: transport row, path toggle, SVG overlay, remove Undo
-- [ ] 6. `tour_controller.js`: wire new targets/actions, remove Undo, render path
+- [x] 6. `tour_controller.js`: wire new targets/actions, remove Undo, render path
 
 # Plan
 
@@ -98,9 +98,13 @@ Built as planned, no deviations. `restart`'s markup keeps its existing icon SVG 
 
 **Verify**: `bundle exec rspec spec/requests/tours_spec.rb -e "GET /"` red (3 new assertions failing) → implement → green (23 examples in that block). Full `bundle exec rspec` 51/51, `bin/rubocop` clean. `tour_controller.js` still unwired to the new targets/actions — Step 6 next.
 
-### 6. `tour_controller.js`: wire targets/actions, remove Undo, render path
+### 6. `tour_controller.js`: wire targets/actions, remove Undo, render path — shipped
 
 No spec (Stimulus controller, per repo convention — matches `tour_playback_controller.js` having none). New targets: `pathSvg`, `startButton`, `prevButton`, `nextButton`, `endButton`, `pathToggle`. New actions: `toStart`, `prev`, `next`, `toEnd`, `togglePath`, `seek(index)`. Remove `undoButton` target and `undo` action. `restart` is unchanged. `render()` gains `renderPath(this.pathSvgTarget, this.game.moves)` (Step 3's module — deliberately `game.moves`, not the combined redo-inclusive path, since the drawn line should only show what's actually been walked) and sets `disabled` on `prevButton`/`startButton` from `atStart`, `nextButton`/`endButton` from `atEnd` (both now on `renderState`'s output). Wire the ticker's `onSeek` to `seek(index) { this.game.goTo(index + 1); this.render() }` — mirrors playback's existing `seek(index) { stop(); this.goTo(index + 1) }` off-by-one (0-based tiles vs. 1-based move count) exactly, no new translation logic needed.
+
+Built as planned, no deviations. All 6 steps now land: `undo`/`undoButton` fully removed with no stray references anywhere in `app/` or `spec/` (grepped to confirm). `board_view.js`'s legal/current/visited/stuck coloring needed no changes — it already derives everything from `game`, which now just sometimes reflects a scrubbed-back cursor position instead of always the tip.
+
+**Verify**: no spec (Stimulus controller). Full `node --test` suite 45/45, `bundle exec rspec` 51/51, `bin/rubocop` clean. Manual browser verification (scrubbing, redo-branch-discard on new move, path toggle, Restart) still needed — see the top-level Verification note; not yet done as of this commit.
 
 ---
 
