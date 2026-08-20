@@ -1,34 +1,105 @@
 # Context
 
-Link previews for `sidquinsaat.com` on chat/social platforms (iMessage, Slack, Facebook, etc.) are showing wrong content — leftover from whatever the domain hosted before this app. The app currently ships zero Open Graph or Twitter Card meta tags and no per-page `<meta name="description">`; every page shares the same generic `<title>`. Without real tags, crawlers fall back to guessing, and platforms are also independently serving a stale cached preview from the old site regardless of what's live now.
+The live-play page (`/`, `new.html.erb`) and the playback/replay page (`/tours/:id`, `show.html.erb`) currently use two visually and structurally different control sets: live play has a plain Undo / Restart / Save row, while playback has a polished 5-button transport row (jump-to-start / prev / play-pause / next / jump-to-end), a click-to-seek ticker, a speed toggle, and a path-line show/hide toggle — all built during the recent Tour Playback UI work.
 
-This plan adds real per-page title/description/OG/Twitter tags so there's a correct source of truth going forward. Forcing platforms to drop their *already-cached* stale preview (via Facebook's Sharing Debugger, Twitter's Card Validator, etc.) is a manual follow-up outside this plan — code changes alone can't bust an existing cache.
+The goal is to make the two pages feel "pretty much the same": live play gets the same transport row and path-line toggle, with the middle button becoming a red "Restart" (replacing Play/Pause, since live play has no auto-advance concept) so it visually reads as destructive/instructive rather than blending in.
+
+This isn't just a markup change. Playback's transport buttons scrub a `TourPlayer` — a read-only cursor over an already-complete, fixed move list. Live play's `KnightTourGame` is a mutable, legality-checked, append-only move list with no cursor at all. Making prev/next/start/end scrub *live* play's history (confirmed with the user) requires giving `KnightTourGame` real undo/redo-stack semantics: stepping back doesn't destroy moves, it stashes them so stepping forward (or jumping to end) restores them — but making a genuinely new move from a scrubbed-back position discards the stale "future" (standard undo/redo branch-cut behavior).
 
 Decisions made with the user before planning this:
-- **og:image**: reuse the existing 512×512 `public/icon.png` — no new asset design pass. `twitter:card` is `summary` (square-image card) rather than `summary_large_image`, which expects a wider image.
-- **Per-page wiring**: `content_for(:title)` / `content_for(:description)` set on all three views (`new`, `index`, `show`); the layout keeps sane site-wide defaults for both so a future view that omits them doesn't ship blank tags.
-- **Show page copy**: description reflects live tour state (move count + complete/incomplete), reusing `_status_pill.html.erb`'s existing `moves.size == 64` check rather than adding a new `Tour` model method for a single call site.
+- Prev/next/start/end scrub live play's move history, bounded by what's actually been played; jump-to-end returns to the live position. Undo as a separate button/method goes away — `prev` absorbs its job.
+- Save stays a separate button, disabled only when there are zero moves (unchanged from today) — it saves whatever's currently on screen, including a scrubbed-back position if that's where the cursor sits when Save is clicked. This is a deliberate, confirmed choice, not an oversight.
+- No new red/danger color exists in the palette today (`--color-board-visited` and `--color-status-incomplete` already carry other meanings) — a new token is needed for the Restart button specifically.
+- No speed control is being added to live play — there's no auto-play concept there.
 
 # Progress
 
-- [x] 1. Layout: description/OG/Twitter meta tags + per-page `content_for(:title)`/`content_for(:description)` on `new`, `index`, `show`
+- [x] 1. `KnightTourGame` gains undo/redo-stack semantics (`prev`/`next`/`toStart`/`toEnd`/`goTo`/`atStart`/`atEnd`/`fullNotationPath`)
+- [ ] 2. `tour_presenter.js`: ticker reflects full history, expose `atStart`/`atEnd`
+- [ ] 3. Extract shared path-line math into `path_svg.js`, refactor playback controller to use it
+- [ ] 4. CSS: danger token + `.transport button.restart`
+- [ ] 5. `new.html.erb`: transport row, path toggle, SVG overlay, remove Undo
+- [ ] 6. `tour_controller.js`: wire new targets/actions, remove Undo, render path
 
 # Plan
 
-### 1. Layout: description/OG/Twitter meta tags + per-page content_for wiring — shipped
+### 1. `KnightTourGame` gains undo/redo-stack semantics — shipped
 
-`app/views/layouts/application.html.erb` grows a `page_title`/`page_description` local (falling back to site-wide defaults) and emits `<meta name="description">`, `og:type`/`og:title`/`og:description`/`og:image`/`og:url`, and `twitter:card`/`twitter:title`/`twitter:description`/`twitter:image`. `og:image`/`twitter:image` resolve to an absolute URL (`request.base_url` + `/icon.png`) since these tags must be crawlable outside the app's own host context.
+`app/javascript/game/knight_tour_game.js` — add `this.redoStack = []` to the constructor. Add:
+- `prev()` — if `moves.length > 0`, `redoStack.push(moves.pop())`. Functionally identical to today's `undo()`, just also stashes the popped square.
+- `next()` — if `redoStack.length > 0`, `moves.push(redoStack.pop())`. No legality re-check needed (it's replaying a move that was already legal, popped in exact reverse order).
+- `toStart()` / `toEnd()` — repeat `prev()`/`next()` until `moves`/`redoStack` is empty, respectively.
+- `goTo(n)` — clamped to `[0, moves.length + redoStack.length]`, implemented via repeated `prev()`/`next()`. `prev`/`next`/`toStart`/`toEnd` can all delegate to `goTo` to cut duplication.
+- `atStart` (`moves.length === 0`) / `atEnd` (`redoStack.length === 0`) getters.
+- `fullNotationPath()` — `[...moves, ...redoStack.slice().reverse()].map(sq => sq.notation)`, for ticker consumption. `notationPath()` (moves-only) stays unchanged since the path-line must only ever show what's actually been walked.
 
-Each view sets `content_for(:title)` and `content_for(:description)`:
-- `new.html.erb` (root/play page): the primary link-shared page, gets an explicit description rather than relying on the layout default.
-- `index.html.erb`: "Saved Tours" title, description about browsing/filtering saved tours.
-- `show.html.erb`: title/description reflect the specific tour's move count and complete/incomplete status.
+In `visit(square)`: **after** the existing legality check succeeds (not before — clearing earlier would wipe the redo stack even on a rejected illegal-move attempt, breaking the existing "a failed call mutates nothing" contract), add `this.redoStack = []` alongside the existing `this.moves.push(square)`. This is what makes clicking a new square while scrubbed-back correctly discard the stale redo branch.
 
-**Spec** (`spec/requests/tours_spec.rb`, extending the existing `GET /`, `GET /tours`, `GET /tours/:id` describe blocks — kept to one representative assertion per page per this repo's minimal-spec convention, not a full tag-by-tag matrix on every page): root page checks the full complement of tags (title, description, all four `og:*`, `twitter:card`) since that's the page the "wrong preview" bug is actually about; index and show pages each get one test confirming their title/description differ from the default and reflect page-specific content (tour completion status for show).
+Remove `undo()` entirely. `restart()` in the controller is unaffected — it already discards the whole `KnightTourGame` instance and builds a fresh one.
 
-Built as planned, no deviations.
+Everything else (`currentSquare`, `visited`, `legalMovesFrom`, `visitedCount`, `won`, `stuck`) is unchanged and derives from `moves` exactly as today — these need no changes and correctly recompute for wherever the cursor currently sits, including while scrubbed back (a redo-stack entry isn't in `visited`, so it stays legal and can't falsely trigger `stuck`).
 
-**Verify**: `bundle exec rspec` red (3 new assertions failing against unchanged views) → implement → green (48 examples total). `bin/rubocop` clean throughout.
+**Spec** (`spec/javascript/game/knight_tour_game.test.js`): replace the old undo-reverts-`currentSquare` case with `prev()` coverage; add `next()` after `prev()`, `toStart()`/`toEnd()` round-tripping, `goTo(n)` clamping at both ends, `atStart`/`atEnd` truth tables, `fullNotationPath()` ordering, and a case confirming a new `visit()` after `prev()` clears the redo stack (and that a *rejected* illegal `visit()` attempt does not).
+
+Built as planned, no deviations. One test-fixture bug caught and fixed during red→green: the "discards stale redo branch" case originally tried `a1 → c1`, but `c1` isn't a legal knight move from `a1` (delta (2,0), not an L-shape) — switched to `c2` (delta (2,1)).
+
+**Known intermediate state**: `tour_controller.js` still calls the now-removed `game.undo()` — clicking Undo in the browser will throw until Step 6 rewires the controller. Expected/tracked, not a regression to fix now; Stimulus controllers aren't unit-tested in this repo so nothing here shows red for it.
+
+**Redone once**: a `git reset --hard` in a separate terminal wiped this step's first implementation (plus a garbled, accidental commit) before it was ever committed from this session. Reapplied identically, this time going file-by-file with explicit confirmation before each one, and holding off on committing until asked.
+
+**Verify**: `node --test spec/javascript/game/knight_tour_game.test.js` red (`game.prev is not a function`) → implement → green (12 examples). Full `node --test` suite 41/41, `bundle exec rspec` 48/48, `bin/rubocop` clean.
+
+### 2. `tour_presenter.js`: ticker shows full history, expose atStart/atEnd
+
+`app/javascript/game/tour_presenter.js` — build the ticker from `game.fullNotationPath()` instead of `game.notationPath()`, with `current = game.moves.length - 1`, so redo-buffered tiles render as "future" tiles the same way playback's ticker already does against its fixed total. Replace `undoDisabled` with `atStart: game.atStart` / `atEnd: game.atEnd` for the controller to drive the four scrub buttons' disabled state. `saveDisabled` stays `game.visitedCount === 0`, unchanged.
+
+No changes needed to `board_view.js` or `ticker_view.js` — both only ever consume derived arrays/indices, never `game` internals directly.
+
+**Spec** (`spec/javascript/game/tour_presenter.test.js`): update ticker assertions for the new full-history behavior, add cases for `atStart`/`atEnd` in `renderState`'s output, remove the old `undoDisabled` case.
+
+### 3. Extract shared path-line math into `path_svg.js`
+
+New `app/javascript/game/path_svg.js`, reused by both controllers instead of a third independent copy of the point math (currently duplicated between `_board_path.html.erb`'s ERB and `tour_playback_controller.js`'s inline `renderPath`):
+- `pathPoints(squares)` — pure function, the `(x - 0.5) * 12.5, (8 - y + 0.5) * 12.5` formula, returns the SVG `points` string. Gets a unit spec (pure logic, per this repo's convention).
+- `renderPath(svgEl, squares)` — builds/updates the two `<polyline>`s + current-position dot on a target `<svg>`. DOM-painting, not pure — no spec, per the same convention that already leaves `ticker_dom.js` untested.
+
+Refactor `tour_playback_controller.js` to delegate to this module — behavior-preserving only, no playback-facing change. (`_board_path.html.erb`'s ERB-side duplication is a separate runtime with no shared build step; not addressed here.)
+
+### 4. CSS: danger token + `.restart` transport button
+
+`app/assets/tailwind/application.css` — add theme tokens:
+```css
+--color-danger: #b5453f;
+--color-danger-hover: #963a35;
+```
+A brick/terracotta red, deliberately distinct from `--color-board-visited` (`#bf7575`, lighter/pinker — "already visited," a gentler signal) and `--color-status-incomplete` (`#d9b23c`, amber — different hue), staying within the app's desaturated palette family. Add `.transport button.restart` (background + hover, sized like `.transport button.play` — larger than the four flanking buttons — but with a single static icon, no play/pause swap).
+
+### 5. `new.html.erb`: transport row, path toggle, SVG overlay, remove Undo
+
+Remove the Undo button block (`undoButton` target, its disabled styling, `click->tour#undo`). Add the 5-button transport row, reusing `_playback_controls.html.erb`'s exact markup/icons for the four non-middle buttons (start/prev/next/end — copy verbatim, retarget `tour-playback` → `tour`); the middle button reuses new.html.erb's *existing* Restart icon SVG (already in the file today) with a new `class="restart"` and `data-action="click->tour#restart"` (the `restart()` method itself is unchanged). Add a path-toggle row modeled on `_playback_controls.html.erb`'s toggle block, under the `tour` controller (`data-tour-target="pathToggle"`, `click->tour#togglePath`). Add `relative` to the `#board` container's class list (it currently lacks it; `_playback_board.html.erb`'s otherwise-identical container already has it) and add an absolutely-positioned empty `<svg data-tour-target="pathSvg">` sibling after the square divs, copying `_playback_board.html.erb`'s SVG attributes for pixel parity. Save stays as its own button, unchanged in behavior/position.
+
+Not doing in this pass: extracting a shared `_transport_controls.html.erb` partial — the middle button differs enough (restart vs. play/pause icon-swap) that a parameterized partial adds more complexity than it saves for one row; matching Tailwind classes directly gets the visual-parity goal at lower risk. Worth revisiting later if the two rows drift.
+
+**Spec** (`spec/requests/tours_spec.rb`, `GET /` block): add one assertion each for the restart button, the path toggle, and the `pathSvg` element's presence — matching this repo's one-assertion-per-new-markup-piece convention. (No existing Undo-button assertion needs removing — the current `GET /` block doesn't have one.)
+
+### 6. `tour_controller.js`: wire targets/actions, remove Undo, render path
+
+No spec (Stimulus controller, per repo convention — matches `tour_playback_controller.js` having none). New targets: `pathSvg`, `startButton`, `prevButton`, `nextButton`, `endButton`, `pathToggle`. New actions: `toStart`, `prev`, `next`, `toEnd`, `togglePath`, `seek(index)`. Remove `undoButton` target and `undo` action. `restart` is unchanged. `render()` gains `renderPath(this.pathSvgTarget, this.game.moves)` (Step 3's module — deliberately `game.moves`, not the combined redo-inclusive path, since the drawn line should only show what's actually been walked) and sets `disabled` on `prevButton`/`startButton` from `atStart`, `nextButton`/`endButton` from `atEnd` (both now on `renderState`'s output). Wire the ticker's `onSeek` to `seek(index) { this.game.goTo(index + 1); this.render() }` — mirrors playback's existing `seek(index) { stop(); this.goTo(index + 1) }` off-by-one (0-based tiles vs. 1-based move count) exactly, no new translation logic needed.
+
+---
+
+Each step lands as its own commit once its spec is green (per this repo's TDD-step-by-step convention) — no batching multiple steps into one commit.
+
+---
+
+# SEO: Meta Tags, Sitemap, and Search Console Verification (complete, kept for history)
+
+Fixed wrong/stale link previews (chat/social, Google/Bing search snippets) caused by the app shipping zero Open Graph/description meta tags and the domain previously hosting a different site.
+
+- **Per-page meta tags** (tracked plan, `#23`): layout grew `<meta name="description">` plus full `og:*`/`twitter:*` tags with site-wide defaults; `new`/`index`/`show` each set `content_for(:title)`/`content_for(:description)`, `show`'s reflecting the tour's actual move count/completion status. `og:image` reuses the existing `icon.png`. Verified live on `sidquinsaat.com` post-deploy via direct `curl`.
+- **Follow-up (ad hoc, untracked in this doc's step checklist since each was a single static file, not app logic)**: added `public/sitemap.xml` (root + `/tours`) and referenced it from `robots.txt`; added Google (`public/google955ca68184b1e3c7.html`) and Bing (`public/BingSiteAuth.xml`) Search Console/Webmaster Tools site-verification files, committed straight to `main` per the user's explicit call (skipping the branch/PR flow for these, since they're inert static assets with no app behavior to review).
+
+See `7e97bdc` (#23), `0d5bc77`, and `739fdfa`/`2bf0dd6` for the full history.
 
 ---
 
