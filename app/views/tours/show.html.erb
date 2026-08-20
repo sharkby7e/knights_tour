@@ -3,7 +3,7 @@
      data-tour-playback-moves-value="<%= @tour.moves.pluck(:square).to_json %>"
      data-action="keydown@window->tour-playback#keydown">
 
-  <div class="flex flex-col lg:flex-row gap-x-10 gap-y-3 items-center">
+  <div class="flex flex-col lg:flex-row gap-y-3 lg:gap-x-16 items-center">
     <%= render "tours/playback_board" %>
     <%= render "tours/playback_controls", tour: @tour %>
   </div>

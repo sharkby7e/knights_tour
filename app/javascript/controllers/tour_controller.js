@@ -58,8 +58,8 @@ export default class extends Controller {
     })
 
     const counting = state.statusVariant === null && this.game.visitedCount > 0
-    const size = counting ? "text-3xl" : "text-lg"
-    this.statusTarget.className = `h-10 flex items-center justify-center whitespace-nowrap overflow-hidden text-zinc-100 ${size}`
+    const size = counting ? "text-3xl" : "text-lg lg:text-3xl"
+    this.statusTarget.className = `h-10 lg:h-24 lg:w-64 flex items-center justify-center lg:text-center whitespace-nowrap lg:whitespace-normal overflow-hidden text-zinc-100 ${size}`
     this.statusTarget.textContent = state.status
 
     if (counting) {
