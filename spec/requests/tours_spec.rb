@@ -127,6 +127,13 @@ RSpec.describe "Tours", type: :request do
       expect(links["Play"]["class"]).to include("text-accent")
       expect(links["Tours"]["class"]).not_to include("text-accent")
     end
+
+    it "renders the move ticker" do
+      get root_path
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.at_css(".move-ticker")).to be_present
+    end
   end
 
   describe "GET /tours/:id" do

@@ -3,9 +3,10 @@ import { Turbo } from "@hotwired/turbo-rails"
 import { KnightTourGame } from "#game/knight_tour_game"
 import { attemptMove, renderState } from "#game/tour_presenter"
 import { KNIGHT_SVG } from "#game/knight_svg"
+import { renderTicker } from "#game/ticker_dom"
 
 export default class extends Controller {
-  static targets = [ "square", "visitedCount", "status", "undoButton", "saveButton" ]
+  static targets = [ "square", "visitedCount", "status", "undoButton", "saveButton", "tickerWindow", "tickerTrack" ]
 
   connect() {
     this.game = new KnightTourGame()
@@ -62,5 +63,7 @@ export default class extends Controller {
     this.statusTarget.textContent = state.status
     this.undoButtonTarget.disabled = state.undoDisabled
     this.saveButtonTarget.disabled = state.saveDisabled
+
+    renderTicker(this.tickerTrackTarget, this.tickerWindowTarget, state.ticker)
   }
 }

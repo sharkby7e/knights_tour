@@ -11,9 +11,11 @@
       <% end %>
     </div>
     <div class="flex flex-col space-y-4 items-center">
-      <div id="visited_count" class="text-xl lg:text-3xl text-zinc-300 text-center">
-        <p>Visited Squares</p>
-        <p data-tour-target="visitedCount">0</p>
+      <div class="w-64 flex flex-col items-center gap-2">
+        <%= render "tours/move_ticker", target_prefix: "tour" %>
+        <p class="text-sm text-zinc-400 tabular-nums">
+          <span data-tour-target="visitedCount">0</span> / <%= Tour::FULL_TOUR_LENGTH %>
+        </p>
       </div>
       <div id="tour_control" class="w-72 flex flex-col items-center space-y-4 text-zinc-300 text-center">
         <p data-tour-target="status" class="h-7 flex items-center justify-center text-xl whitespace-nowrap">Choose a starting square</p>

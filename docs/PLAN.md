@@ -16,7 +16,7 @@ Decisions made with the user before planning this:
 - [x] 3. `TourPlayer` — step-cursor over an ordered list of squares
 - [x] 4. `ticker_view.js` + `playback_view.js` — pure view-model layer
 - [x] 5. Show page playback UI — partial, CSS, controller, `show.html.erb`
-- [ ] 6. Wire ticker+count into the live `/` play page
+- [x] 6. Wire ticker+count into the live `/` play page
 
 # Plan
 
@@ -44,15 +44,9 @@ Built as planned: `ticker_view.js`'s `tickerView(notations, currentIndex)` and `
 
 Built as planned, then hand-tested and tuned with the user through several rounds: fixed a missing `.transport { display: flex }` rule (buttons were stacking vertically); the board grid switched from relying on each square's own `w-10/lg:w-24` to size the grid intrinsically (works fine on the plain interactive board, but broke — non-square cells, misaligned path line — once an absolutely-positioned SVG sibling entered the picture) to a definite `w-80 lg:w-[48rem]` + `aspect-square` container, matching the sizing technique `_board.html.erb` already uses elsewhere; transport buttons, scrubber, ticker, and speed/path toggles all sized up from the initial pass; speed buttons switched from `flex-1` to fixed `w-10 h-10` squares; the ticker shrunk and given a `backdrop-filter: blur` + `mask-image` edge taper (a "wheel" look, beyond the mockup's plain gradient fade). Request specs green (6 examples covering the moves data attribute, scrubber max, back link, and the updated move-count/pill assertions); `bin/rubocop` clean. No automated coverage of the interactive controller (matches this repo's convention — `tour_controller.js` has no test file either); verified entirely by hand in the browser. Followup refactor: `show.html.erb` split into `_playback_board.html.erb` and `_playback_controls.html.erb` partials (thin composition, one `render` each) ahead of step 6's `tour_controller.js` reuse; the ticker's DOM-rendering (tile building + centering-transform math) pulled out of `tour_playback_controller.js` into a shared `app/javascript/game/ticker_dom.js` (`renderTicker(trackEl, windowEl, tiles, onSeek = null)`) so step 6 doesn't duplicate it — no spec, matching the existing no-test convention for controller-level DOM code.
 
-### 6. Wire ticker+count into the live `/` play page
+### 6. Wire ticker+count into the live `/` play page — shipped
 
-`app/views/tours/new.html.erb`: replace the `#visited_count` box with the `_move_ticker` partial (passive — no seek handler, matching the mockup's "empty ticker until first move" behavior) plus a small `N / 64` count readout next to it. `tour_controller.js`: extend `render()` to call `ticker_view.js` (step 4) with `game.notationPath()` and the last index, and populate the ticker/count targets. `renderState` in `tour_presenter.js` grows a `ticker`/`notations` field.
-
-**Spec first (red)**:
-- `spec/javascript/game/tour_presenter.test.js`: `renderState` includes ticker data reflecting the current moves
-- `spec/requests/tours_spec.rb`'s root-page block: the ticker partial is present on `GET /`; any existing assertion on "Visited Squares" text is removed/updated
-
-**Verify**: `node --test` and `bundle exec rspec` green; `bin/rubocop` clean; manual `bin/dev` pass — ticker grows as you play, count updates, undo/restart/save still work.
+Built as planned: `new.html.erb`'s `#visited_count` box replaced with `render "tours/move_ticker", target_prefix: "tour"` (passive — `renderTicker` called with no `onSeek`) plus an `N / <%= Tour::FULL_TOUR_LENGTH %>` count readout. `renderState` in `tour_presenter.js` grew a `ticker` field via `ticker_view.js`. `node --test` red → green (33 examples); `bundle exec rspec` red → green (47); `bin/rubocop` clean throughout.
 
 ---
 
