@@ -143,6 +143,27 @@ RSpec.describe "Tours", type: :request do
       expect(doc.at_css(".move-ticker")).to be_present
     end
 
+    it "renders a restart button in the transport row" do
+      get root_path
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.at_css("button[data-action*='tour#restart']")).to be_present
+    end
+
+    it "renders a path-line toggle" do
+      get root_path
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.at_css("[data-tour-target='pathToggle']")).to be_present
+    end
+
+    it "renders an SVG overlay for the path line" do
+      get root_path
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.at_css("svg[data-tour-target='pathSvg']")).to be_present
+    end
+
     it "sets description and Open Graph meta tags for link previews" do
       get root_path
 

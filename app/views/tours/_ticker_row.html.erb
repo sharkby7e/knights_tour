@@ -1,0 +1,6 @@
+<div class="flex items-center justify-center gap-2">
+  <%= render "tours/move_ticker", target_prefix: target_prefix %>
+  <p class="shrink-0 text-xs text-zinc-400 tabular-nums">
+    <span data-<%= target_prefix %>-target="stepNum" class="inline-block min-w-[2ch] text-right">0</span>/<span data-<%= target_prefix %>-target="stepTotal"><%= total %></span>
+  </p>
+</div>
