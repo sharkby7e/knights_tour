@@ -111,10 +111,14 @@ export default class extends Controller {
       return
     }
 
-    const coords = points.map(sq => `${(sq.x - 0.5) * 12.5},${(8 - sq.y + 0.5) * 12.5}`).join(" ")
+    const coord = sq => `${(sq.x - 0.5) * 12.5},${(8 - sq.y + 0.5) * 12.5}`
+    const startDot = `<circle cx="${(points[0].x - 0.5) * 12.5}" cy="${(8 - points[0].y + 0.5) * 12.5}" r="2.25" class="fill-board-legal" />`
+
+    const coords = points.map(coord).join(" ")
     this.pathSvgTarget.innerHTML = `
       <polyline points="${coords}" fill="none" stroke="#3df3ff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
       <polyline points="${coords}" fill="none" stroke="#ff2ee0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" class="animate-pulse-line" />
+      ${startDot}
     `
   }
 }

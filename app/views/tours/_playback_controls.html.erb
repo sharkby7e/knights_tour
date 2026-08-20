@@ -1,4 +1,9 @@
-<div class="w-64 flex flex-col gap-4">
+<div class="w-64 flex flex-col gap-3">
+  <div class="flex items-center justify-center gap-3 scale-90 lg:scale-100">
+    <h1 class="font-title text-lg text-zinc-300 font-semibold">Tour #<%= tour.id %></h1>
+    <%= render "tours/status_pill", tour: tour %>
+  </div>
+
   <div class="transport">
     <button type="button" title="Jump to start" aria-label="Jump to start"
             data-tour-playback-target="startButton" data-action="click->tour-playback#toStart">

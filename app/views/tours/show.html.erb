@@ -1,14 +1,9 @@
-<div class="relative h-full w-full flex flex-col items-center justify-center touch-manipulation"
+<div class="h-full w-full flex flex-col items-center justify-center touch-manipulation"
      data-controller="tour-playback"
      data-tour-playback-moves-value="<%= @tour.moves.pluck(:square).to_json %>"
      data-action="keydown@window->tour-playback#keydown">
 
-  <div class="absolute top-0 inset-x-0 flex items-center justify-center gap-3">
-    <h1 class="font-title text-lg text-zinc-300 font-semibold">Tour #<%= @tour.id %></h1>
-    <%= render "tours/status_pill", tour: @tour %>
-  </div>
-
-  <div class="flex flex-col lg:flex-row gap-x-10 gap-y-6 items-center">
+  <div class="flex flex-col lg:flex-row gap-x-10 gap-y-3 items-center">
     <%= render "tours/playback_board" %>
     <%= render "tours/playback_controls", tour: @tour %>
   </div>
