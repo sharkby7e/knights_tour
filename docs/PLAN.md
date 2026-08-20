@@ -15,7 +15,7 @@ Decisions made with the user before planning this:
 # Progress
 
 - [x] 1. `KnightTourGame` gains undo/redo-stack semantics (`prev`/`next`/`toStart`/`toEnd`/`goTo`/`atStart`/`atEnd`/`fullNotationPath`)
-- [ ] 2. `tour_presenter.js`: ticker reflects full history, expose `atStart`/`atEnd`
+- [x] 2. `tour_presenter.js`: ticker reflects full history, expose `atStart`/`atEnd`
 - [ ] 3. Extract shared path-line math into `path_svg.js`, refactor playback controller to use it
 - [ ] 4. CSS: danger token + `.transport button.restart`
 - [ ] 5. `new.html.erb`: transport row, path toggle, SVG overlay, remove Undo
@@ -49,13 +49,19 @@ Built as planned, no deviations. One test-fixture bug caught and fixed during re
 
 **Verify**: `node --test spec/javascript/game/knight_tour_game.test.js` red (`game.prev is not a function`) → implement → green (12 examples). Full `node --test` suite 41/41, `bundle exec rspec` 48/48, `bin/rubocop` clean.
 
-### 2. `tour_presenter.js`: ticker shows full history, expose atStart/atEnd
+### 2. `tour_presenter.js`: ticker shows full history, expose atStart/atEnd — shipped
 
 `app/javascript/game/tour_presenter.js` — build the ticker from `game.fullNotationPath()` instead of `game.notationPath()`, with `current = game.moves.length - 1`, so redo-buffered tiles render as "future" tiles the same way playback's ticker already does against its fixed total. Replace `undoDisabled` with `atStart: game.atStart` / `atEnd: game.atEnd` for the controller to drive the four scrub buttons' disabled state. `saveDisabled` stays `game.visitedCount === 0`, unchanged.
 
 No changes needed to `board_view.js` or `ticker_view.js` — both only ever consume derived arrays/indices, never `game` internals directly.
 
 **Spec** (`spec/javascript/game/tour_presenter.test.js`): update ticker assertions for the new full-history behavior, add cases for `atStart`/`atEnd` in `renderState`'s output, remove the old `undoDisabled` case.
+
+Built as planned. Two of the new `atStart`/`atEnd` assertions were initially written as `assert.ok(!state.atStart)` — a weak check that passes trivially on `undefined` (pre-implementation) as readily as on a real `false`, so they weren't actually red before the fix. Tightened to `assert.equal(state.atStart, false)` before implementing, which genuinely failed against the unchanged `renderState`.
+
+**Known intermediate state**: `tour_controller.js` still reads `state.undoDisabled` (now always `undefined`) to set the Undo button's `disabled` property — untested Stimulus code, so nothing shows red for it; fixed in Step 6 along with the rest of the controller rewiring.
+
+**Verify**: `node --test spec/javascript/game/tour_presenter.test.js` red (5 failures) → implement → green (13 examples). Full `node --test` suite 43/43, `bundle exec rspec` 48/48, `bin/rubocop` clean.
 
 ### 3. Extract shared path-line math into `path_svg.js`
 

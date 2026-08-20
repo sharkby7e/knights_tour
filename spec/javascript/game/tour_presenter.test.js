@@ -17,19 +17,28 @@ test("attemptMove leaves the game untouched and returns false for an illegal mov
   assert.equal(game.visitedCount, 1)
 })
 
-test("renderState disables undo with no moves, reports 64 squares, and prompts for a starting square", () => {
+test("renderState reports atStart/atEnd with no moves, reports 64 squares, and prompts for a starting square", () => {
   const game = new KnightTourGame()
   const state = renderState(game)
   assert.equal(state.squares.length, 64)
-  assert.ok(state.undoDisabled)
+  assert.ok(state.atStart)
+  assert.ok(state.atEnd)
   assert.match(state.status, /starting square/i)
 })
 
-test("renderState enables undo once a move has been made", () => {
+test("renderState reports atStart false once a move has been made", () => {
   const game = new KnightTourGame()
   attemptMove(game, "a1")
   const state = renderState(game)
-  assert.ok(!state.undoDisabled)
+  assert.equal(state.atStart, false)
+})
+
+test("renderState reports atEnd false after stepping back with prev", () => {
+  const game = new KnightTourGame()
+  attemptMove(game, "a1")
+  game.prev()
+  const state = renderState(game)
+  assert.equal(state.atEnd, false)
 })
 
 test("renderState disables save with no moves", () => {
@@ -60,7 +69,7 @@ test("renderState reports stuck status and variant at a real dead end, prompting
   assert.match(state.status, /stuck/i)
   assert.match(state.status, /restart/i)
   assert.equal(state.statusVariant, "stuck")
-  assert.ok(!state.undoDisabled)
+  assert.equal(state.atStart, false)
 })
 
 test("renderState reports no status variant mid-game", () => {
@@ -87,4 +96,15 @@ test("renderState includes ticker data reflecting the current moves", () => {
   const state = renderState(game)
   assert.deepEqual(state.ticker.map(t => t.notation), [ "a1", "c2" ])
   assert.deepEqual(state.ticker.map(t => t.current), [ false, true ])
+})
+
+test("renderState's ticker still includes redo-buffered moves as future tiles after prev", () => {
+  const game = new KnightTourGame()
+  attemptMove(game, "a1")
+  attemptMove(game, "c2")
+  game.prev()
+
+  const state = renderState(game)
+  assert.deepEqual(state.ticker.map(t => t.notation), [ "a1", "c2" ])
+  assert.deepEqual(state.ticker.map(t => t.current), [ true, false ])
 })
