@@ -27,6 +27,11 @@
   --color-board-legal: #6bab8c;
   --color-board-visited: #bf7575;
   --color-board-stuck: #3a3633;
+  /* Playback's "trail" wash (visited-but-not-current squares while replaying a saved
+     tour) — deliberately its own token, not --color-board-visited (the live-play
+     dead-end signal, a different meaning). Applied as an inset box-shadow, not a
+     solid fill, so the light/dark checker still shows through underneath. */
+  --color-board-trail: rgb(168 137 95 / 0.4);
 
   /* tours/_tour.html.erb's Incomplete status pill — deliberately not reusing
      --color-board-visited (that's the in-play dead-end/trail red, a different
@@ -40,6 +45,7 @@
 
   --animate-pop: pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
   --animate-pulse-line: pulse-line 3s ease-in-out infinite;
+  --animate-count-roll: count-roll 220ms cubic-bezier(0.34, 1.2, 0.4, 1);
 }
 
 @keyframes pop {
@@ -47,9 +53,14 @@
   100% { transform: scale(1); }
 }
 
+@keyframes count-roll {
+  from { transform: translateX(65%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
 @keyframes pulse-line {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.85; }
+  50% { opacity: 0.65; }
 }
 
 @layer components {
@@ -76,5 +87,151 @@
 
   .pagy-nav a[aria-current="page"] {
     @apply pointer-events-none bg-accent font-semibold text-zinc-950;
+  }
+
+  /* Tour playback panel: transport, moves ticker, speed/path toggles.
+     ::-webkit-slider-thumb and other pseudo-elements aren't reachable via
+     Tailwind utilities alone, so these live here (mirrors the .pagy-nav
+     pattern above). */
+  .transport {
+    @apply flex flex-wrap items-center justify-center gap-3;
+  }
+
+  .transport button {
+    @apply w-8 h-8 lg:w-9 lg:h-9 rounded-lg border-none bg-zinc-700 text-zinc-200 flex items-center justify-center cursor-pointer transition-colors duration-150;
+  }
+
+  .transport button:hover {
+    @apply bg-zinc-600;
+  }
+
+  .transport button:active {
+    transform: scale(0.92);
+  }
+
+  .transport button:disabled {
+    @apply opacity-35 cursor-not-allowed;
+  }
+
+  .transport button:disabled:hover {
+    @apply bg-zinc-700;
+  }
+
+  .transport button.play {
+    @apply w-11 h-11 lg:w-12 lg:h-12 bg-accent text-zinc-950;
+  }
+
+  .transport button.play:hover {
+    @apply bg-accent-hover;
+  }
+
+  .transport svg {
+    @apply w-3 h-3 lg:w-3.5 lg:h-3.5;
+  }
+
+  .transport button.play svg {
+    @apply w-4 h-4 lg:w-5 lg:h-5;
+  }
+
+  /* Moves ticker: a fixed window with a wider strip of move tiles sliding
+     underneath it, current move always centered. Every notation is exactly
+     2 characters (file a-h + rank 1-8), so tile width is a fixed constant
+     (--tick-w, kept in sync with TICK_W_REM in tour_playback_controller.js)
+     rather than measured — that's what makes the centering math exact. */
+  .move-ticker {
+    --tick-w: 2.5rem;
+    @apply relative h-9 w-48 shrink-0 bg-zinc-900 border border-zinc-700 rounded-lg overflow-hidden;
+  }
+
+  .move-ticker::before,
+  .move-ticker::after {
+    content: "";
+    @apply absolute inset-y-0 w-10 pointer-events-none z-10;
+    backdrop-filter: blur(2px);
+  }
+
+  .move-ticker::before {
+    @apply left-0;
+    background: linear-gradient(to right, var(--color-zinc-900) 30%, transparent);
+    mask-image: linear-gradient(to right, black, transparent);
+  }
+
+  .move-ticker::after {
+    @apply right-0;
+    background: linear-gradient(to left, var(--color-zinc-900) 30%, transparent);
+    mask-image: linear-gradient(to left, black, transparent);
+  }
+
+  .tick-highlight {
+    @apply absolute top-1/2 left-1/2 rounded pointer-events-none;
+    width: var(--tick-w);
+    height: 2rem;
+    transform: translate(-50%, -50%);
+    background: rgb(234 196 120 / 0.28);
+    border: 1px solid rgb(234 196 120 / 0.55);
+    backdrop-filter: blur(1px) saturate(1.6);
+  }
+
+  .move-ticker-track {
+    @apply absolute top-0 left-0 h-full flex items-center;
+    transition: transform 220ms cubic-bezier(0.34, 1.2, 0.4, 1);
+    will-change: transform;
+  }
+
+  .move-ticker-empty {
+    @apply absolute inset-0 flex items-center justify-center text-xs text-zinc-500;
+  }
+
+  .tick {
+    flex: 0 0 var(--tick-w);
+    width: var(--tick-w);
+    @apply h-8 flex items-center justify-center rounded text-sm tabular-nums text-zinc-400 bg-transparent border-none cursor-pointer transition-colors duration-100;
+  }
+
+  .tick:hover {
+    @apply text-zinc-200;
+  }
+
+  .tick.current {
+    @apply text-zinc-100 font-bold;
+  }
+
+  .speed-group {
+    @apply flex gap-1.5;
+  }
+
+  .speed-btn {
+    @apply w-8 h-8 flex items-center justify-center text-xs tabular-nums rounded-md border border-zinc-700 bg-transparent text-zinc-400 cursor-pointer transition-colors duration-150;
+  }
+
+  .speed-btn:hover {
+    @apply border-zinc-500 text-zinc-200;
+  }
+
+  .speed-btn.active {
+    @apply bg-accent border-accent text-zinc-950 font-semibold;
+  }
+
+  .toggle {
+    @apply relative w-9 h-5 rounded-full bg-zinc-700 border-none cursor-pointer transition-colors duration-150;
+  }
+
+  .toggle::after {
+    content: "";
+    @apply absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-zinc-200 transition-transform duration-150;
+  }
+
+  .toggle.on {
+    @apply bg-accent;
+  }
+
+  .toggle.on::after {
+    transform: translateX(1rem);
+  }
+
+  /* Playback's trail wash — an inset box-shadow, not a solid fill, so the
+     underlying light/dark checker still shows through. */
+  .trail {
+    box-shadow: inset 0 0 0 999px var(--color-board-trail);
   }
 }

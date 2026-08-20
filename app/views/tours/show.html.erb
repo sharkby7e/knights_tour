@@ -1,10 +1,10 @@
-<div class="h-full w-full flex flex-col items-center justify-center space-y-6">
-  <h1 class="font-title text-4xl text-zinc-300 font-semibold">Tour #<%= @tour.id %></h1>
+<div class="h-full w-full flex flex-col items-center justify-center touch-manipulation"
+     data-controller="tour-playback"
+     data-tour-playback-moves-value="<%= @tour.moves.pluck(:square).to_json %>"
+     data-action="keydown@window->tour-playback#keydown">
 
-  <%= render "tours/board", tour: @tour, wrapper_class: "max-w-2xl rounded-2xl overflow-hidden" %>
-
-  <div class="flex items-center gap-3">
-    <p class="text-zinc-400"><%= pluralize(@tour.moves.size, "move") %></p>
-    <%= render "tours/status_pill", tour: @tour %>
+  <div class="flex flex-col lg:flex-row gap-x-10 gap-y-3 items-center">
+    <%= render "tours/playback_board" %>
+    <%= render "tours/playback_controls", tour: @tour %>
   </div>
 </div>

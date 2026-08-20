@@ -127,6 +127,13 @@ RSpec.describe "Tours", type: :request do
       expect(links["Play"]["class"]).to include("text-accent")
       expect(links["Tours"]["class"]).not_to include("text-accent")
     end
+
+    it "renders the move ticker" do
+      get root_path
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      expect(doc.at_css(".move-ticker")).to be_present
+    end
   end
 
   describe "GET /tours/:id" do
@@ -138,25 +145,35 @@ RSpec.describe "Tours", type: :request do
       expect(response).to be_successful
     end
 
-    it "shows the move count and a Complete pill for a finished tour" do
+    it "shows the move count for a finished tour" do
       tour = create(:tour, :complete)
 
       get tour_path(tour)
 
       doc = Nokogiri::HTML5.fragment(response.body)
-      expect(doc.text).to include("64 moves")
-      expect(doc.text).to include("Complete")
+      expect(doc.at_css("[data-tour-playback-target='stepTotal']").text).to eq("64")
     end
 
-    it "shows an Incomplete pill and the move count for a partial tour" do
+    it "shows the move count for a partial tour" do
       tour = create(:tour)
       create(:move, tour:, position: 1, square: "a1")
 
       get tour_path(tour)
 
       doc = Nokogiri::HTML5.fragment(response.body)
-      expect(doc.text).to include("1 move")
-      expect(doc.text).to include("Incomplete")
+      expect(doc.at_css("[data-tour-playback-target='stepTotal']").text).to eq("1")
+    end
+
+    it "includes the tour's move notations in order on the board root's moves data attribute" do
+      tour = create(:tour)
+      create(:move, tour:, position: 1, square: "e4")
+      create(:move, tour:, position: 2, square: "f6")
+
+      get tour_path(tour)
+
+      doc = Nokogiri::HTML5.fragment(response.body)
+      root = doc.at_css("[data-tour-playback-moves-value]")
+      expect(JSON.parse(root["data-tour-playback-moves-value"])).to eq([ "e4", "f6" ])
     end
   end
 
