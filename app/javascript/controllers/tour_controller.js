@@ -92,6 +92,6 @@ export default class extends Controller {
     this.stepNumTarget.textContent = this.game.visitedCount
 
     renderTicker(this.tickerTrackTarget, this.tickerWindowTarget, state.ticker, i => this.seek(i))
-    renderPath(this.pathSvgTarget, this.showPath ? this.game.moves : [])
+    renderPath(this.pathSvgTarget, this.showPath && !this.game.stuck ? this.game.moves : [])
   }
 }
