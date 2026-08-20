@@ -18,7 +18,7 @@ Decisions made with the user before planning this:
 - [x] 2. `tour_presenter.js`: ticker reflects full history, expose `atStart`/`atEnd`
 - [x] 3. Extract shared path-line math into `path_svg.js`, refactor playback controller to use it
 - [x] 4. CSS: danger token + `.transport button.restart`
-- [ ] 5. `new.html.erb`: transport row, path toggle, SVG overlay, remove Undo
+- [x] 5. `new.html.erb`: transport row, path toggle, SVG overlay, remove Undo
 - [ ] 6. `tour_controller.js`: wire new targets/actions, remove Undo, render path
 
 # Plan
@@ -86,13 +86,17 @@ A brick/terracotta red, deliberately distinct from `--color-board-visited` (`#bf
 
 Built as planned, no deviations. No spec (styling only, per convention). Verified by inspection that `bg-danger`/`bg-danger-hover` follow the exact same `--color-*` → utility-class pattern Tailwind v4 already generates for `bg-accent`/`bg-accent-hover` immediately above it in `@theme`.
 
-### 5. `new.html.erb`: transport row, path toggle, SVG overlay, remove Undo
+### 5. `new.html.erb`: transport row, path toggle, SVG overlay, remove Undo — shipped
 
 Remove the Undo button block (`undoButton` target, its disabled styling, `click->tour#undo`). Add the 5-button transport row, reusing `_playback_controls.html.erb`'s exact markup/icons for the four non-middle buttons (start/prev/next/end — copy verbatim, retarget `tour-playback` → `tour`); the middle button reuses new.html.erb's *existing* Restart icon SVG (already in the file today) with a new `class="restart"` and `data-action="click->tour#restart"` (the `restart()` method itself is unchanged). Add a path-toggle row modeled on `_playback_controls.html.erb`'s toggle block, under the `tour` controller (`data-tour-target="pathToggle"`, `click->tour#togglePath`). Add `relative` to the `#board` container's class list (it currently lacks it; `_playback_board.html.erb`'s otherwise-identical container already has it) and add an absolutely-positioned empty `<svg data-tour-target="pathSvg">` sibling after the square divs, copying `_playback_board.html.erb`'s SVG attributes for pixel parity. Save stays as its own button, unchanged in behavior/position.
 
 Not doing in this pass: extracting a shared `_transport_controls.html.erb` partial — the middle button differs enough (restart vs. play/pause icon-swap) that a parameterized partial adds more complexity than it saves for one row; matching Tailwind classes directly gets the visual-parity goal at lower risk. Worth revisiting later if the two rows drift.
 
 **Spec** (`spec/requests/tours_spec.rb`, `GET /` block): add one assertion each for the restart button, the path toggle, and the `pathSvg` element's presence — matching this repo's one-assertion-per-new-markup-piece convention. (No existing Undo-button assertion needs removing — the current `GET /` block doesn't have one.)
+
+Built as planned, no deviations. `restart`'s markup keeps its existing icon SVG (already in the file), just moved into the transport row with `class="restart"` and no `title`/`sr-only` label text duplication issue since the other transport buttons follow the same icon-only + `aria-label` pattern already.
+
+**Verify**: `bundle exec rspec spec/requests/tours_spec.rb -e "GET /"` red (3 new assertions failing) → implement → green (23 examples in that block). Full `bundle exec rspec` 51/51, `bin/rubocop` clean. `tour_controller.js` still unwired to the new targets/actions — Step 6 next.
 
 ### 6. `tour_controller.js`: wire targets/actions, remove Undo, render path
 
