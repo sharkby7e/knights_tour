@@ -62,12 +62,13 @@ test("renderState reports won status and variant once all 64 squares are visited
   assert.equal(state.statusVariant, "won")
 })
 
-test("renderState reports stuck status and variant at a real dead end, prompting a restart", () => {
+test("renderState reports the move count and a restart/save hint at a real dead end", () => {
   const game = new KnightTourGame()
   ;[ "c2", "d4", "b3", "a1" ].forEach(n => attemptMove(game, n))
   const state = renderState(game)
-  assert.match(state.status, /stuck/i)
-  assert.match(state.status, /restart/i)
+  assert.equal(state.status, "4")
+  assert.match(state.hint, /restart/i)
+  assert.match(state.hint, /save/i)
   assert.equal(state.statusVariant, "stuck")
   assert.equal(state.atStart, false)
 })

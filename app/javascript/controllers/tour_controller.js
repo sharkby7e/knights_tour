@@ -79,10 +79,15 @@ export default class extends Controller {
       el.innerHTML = view.current ? KNIGHT_SVG : ""
     })
 
-    const counting = state.statusVariant === null && this.game.visitedCount > 0
+    const counting = state.statusVariant !== "won" && this.game.visitedCount > 0
     const size = counting ? "text-3xl" : "text-lg lg:text-3xl"
-    this.statusTarget.className = `h-10 lg:h-24 lg:w-full flex items-center justify-center lg:text-center whitespace-nowrap lg:whitespace-normal overflow-hidden text-zinc-100 ${size}`
-    this.statusTarget.textContent = state.status
+    const height = state.hint ? "h-14 lg:h-24" : this.game.visitedCount === 0 ? "h-6 lg:h-24" : "h-10 lg:h-24"
+    this.statusTarget.className = `${height} lg:w-full flex flex-col items-center justify-center lg:text-center whitespace-nowrap lg:whitespace-normal overflow-hidden text-zinc-100 ${size}`
+    if (state.hint) {
+      this.statusTarget.innerHTML = `<span>${state.status}</span><span class="text-sm text-zinc-400 leading-tight">${state.hint}</span>`
+    } else {
+      this.statusTarget.textContent = state.status
+    }
 
     this.startButtonTarget.disabled = state.atStart
     this.prevButtonTarget.disabled = state.atStart
