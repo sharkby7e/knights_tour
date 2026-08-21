@@ -1,5 +1,5 @@
 <div class="w-64 flex flex-col gap-3 lg:gap-6">
-  <h1 class="font-title h-10 lg:h-24 lg:w-full flex items-center justify-center lg:text-center text-lg lg:text-3xl text-zinc-300 font-semibold">Tour #<%= tour.id %></h1>
+  <h1 class="font-title h-6 lg:h-24 lg:w-full flex items-center justify-center lg:text-center text-lg lg:text-3xl text-zinc-300 font-semibold">Tour #<%= tour.id %></h1>
 
   <%= render layout: "tours/transport", locals: { target_prefix: "tour-playback" } do %>
     <button type="button" class="play" title="Play" aria-label="Play"
