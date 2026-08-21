@@ -16,15 +16,13 @@ export function attemptMove(game, notation) {
 export function renderState(game) {
   const statusVariant = game.won ? "won" : game.stuck ? "stuck" : null
   const status = statusVariant === "won" ? "You won!" : game.visitedCount === 0 ? "Choose a starting square" : `${game.visitedCount}`
-  const hint = statusVariant === "stuck" ? "Restart or save" : ""
   return {
     squares: boardView(game),
     status,
     statusVariant,
-    hint,
     atStart: game.atStart,
     atEnd: game.atEnd,
-    saveDisabled: game.visitedCount === 0,
+    saveVisible: statusVariant === "won" || statusVariant === "stuck",
     ticker: tickerView(game.fullNotationPath(), game.moves.length - 1)
   }
 }

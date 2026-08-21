@@ -16,29 +16,27 @@
       <svg viewBox="0 0 100 100" class="absolute inset-0 w-full h-full pointer-events-none" data-tour-target="pathSvg"></svg>
     </div>
 
-    <div class="w-64 flex flex-col gap-3 lg:gap-6">
-      <p data-tour-target="status" class="h-14 lg:h-24 lg:w-full flex items-center justify-center lg:text-center text-lg lg:text-3xl text-zinc-300 whitespace-nowrap lg:whitespace-normal overflow-hidden">Choose a starting square</p>
+    <% top_slot = capture do %>
+      <p data-tour-target="status" class="lg:text-center text-lg lg:text-2xl text-zinc-300 whitespace-nowrap lg:whitespace-normal overflow-hidden">Choose a starting square</p>
 
-      <%= render layout: "tours/transport", locals: { target_prefix: "tour" } do %>
-        <button type="button" class="play" title="Restart" aria-label="Restart"
-                data-action="click->tour#restart">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10"/>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
-        </button>
-      <% end %>
-
-      <%= render "tours/ticker_row", target_prefix: "tour", total: 64 %>
-
-      <%= render "tours/path_toggle", target_prefix: "tour" %>
-
-      <button type="button" data-tour-target="saveButton" data-action="click->tour#save" disabled
-              title="Save"
-              class="self-center bg-accent hover:bg-accent-hover disabled:opacity-40 disabled:hover:bg-accent text-zinc-950 w-11 h-11 lg:w-12 lg:h-12 flex items-center justify-center rounded-lg transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed">
+      <button type="button" data-tour-target="saveButton" data-action="click->tour#save"
+              class="hidden flex items-center gap-1 mt-1 bg-accent hover:bg-accent-hover text-zinc-950 pl-2 pr-2.5 py-1 rounded-full text-xs font-medium transition-colors duration-200 cursor-pointer">
         <%= render "tours/save_icon" %>
-        <span class="sr-only">Save</span>
+        Save
       </button>
-    </div>
+    <% end %>
+
+    <% restart_button = capture do %>
+      <button type="button" class="play" title="Restart" aria-label="Restart"
+              data-action="click->tour#restart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+      </button>
+    <% end %>
+
+    <%= render layout: "tours/controls_column", locals: { target_prefix: "tour", total: 64, top_slot: top_slot, middle_button: restart_button } do %>
+    <% end %>
   </div>
 </div>

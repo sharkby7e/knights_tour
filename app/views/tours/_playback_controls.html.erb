@@ -1,18 +1,16 @@
-<div class="w-64 flex flex-col gap-3 lg:gap-6">
-  <h1 class="font-title h-6 lg:h-24 lg:w-full flex items-center justify-center lg:text-center text-lg lg:text-3xl text-zinc-300 font-semibold">Tour #<%= tour.id %></h1>
+<% top_slot = capture do %>
+  <h1 class="font-title lg:text-center text-lg lg:text-3xl text-zinc-300 font-semibold">Tour #<%= tour.id %></h1>
+<% end %>
 
-  <%= render layout: "tours/transport", locals: { target_prefix: "tour-playback" } do %>
-    <button type="button" class="play" title="Play" aria-label="Play"
-            data-tour-playback-target="playButton" data-action="click->tour-playback#togglePlay">
-      <svg data-tour-playback-target="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-      <svg data-tour-playback-target="pauseIcon" viewBox="0 0 24 24" fill="currentColor" class="hidden"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
-    </button>
-  <% end %>
+<% play_button = capture do %>
+  <button type="button" class="play" title="Play" aria-label="Play"
+          data-tour-playback-target="playButton" data-action="click->tour-playback#togglePlay">
+    <svg data-tour-playback-target="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    <svg data-tour-playback-target="pauseIcon" viewBox="0 0 24 24" fill="currentColor" class="hidden"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+  </button>
+<% end %>
 
-  <%= render "tours/ticker_row", target_prefix: "tour-playback", total: tour.moves.size %>
-
-  <%= render "tours/path_toggle", target_prefix: "tour-playback" %>
-
+<%= render layout: "tours/controls_column", locals: { target_prefix: "tour-playback", total: tour.moves.size, top_slot: top_slot, middle_button: play_button } do %>
   <div class="flex items-center justify-between gap-3">
     <span class="text-xs uppercase tracking-wide text-zinc-500">Speed</span>
     <div class="speed-group">
@@ -22,4 +20,4 @@
       <button type="button" class="speed-btn" data-ms="70" data-tour-playback-target="speedButton" data-action="click->tour-playback#setSpeed">4&times;</button>
     </div>
   </div>
-</div>
+<% end %>
