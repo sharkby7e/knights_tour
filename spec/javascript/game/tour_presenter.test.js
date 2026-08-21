@@ -41,17 +41,17 @@ test("renderState reports atEnd false after stepping back with prev", () => {
   assert.equal(state.atEnd, false)
 })
 
-test("renderState disables save with no moves", () => {
+test("renderState hides save with no moves", () => {
   const game = new KnightTourGame()
   const state = renderState(game)
-  assert.ok(state.saveDisabled)
+  assert.equal(state.saveVisible, false)
 })
 
-test("renderState enables save once a move has been made", () => {
+test("renderState hides save mid-game", () => {
   const game = new KnightTourGame()
   attemptMove(game, "a1")
   const state = renderState(game)
-  assert.ok(!state.saveDisabled)
+  assert.equal(state.saveVisible, false)
 })
 
 test("renderState reports won status and variant once all 64 squares are visited", () => {
@@ -60,6 +60,13 @@ test("renderState reports won status and variant once all 64 squares are visited
   const state = renderState(game)
   assert.match(state.status, /won/i)
   assert.equal(state.statusVariant, "won")
+})
+
+test("renderState shows save once all 64 squares are visited", () => {
+  const game = new KnightTourGame()
+  game.moves = Square.all()
+  const state = renderState(game)
+  assert.equal(state.saveVisible, true)
 })
 
 test("renderState reports the move count and a restart/save hint at a real dead end", () => {
@@ -71,6 +78,13 @@ test("renderState reports the move count and a restart/save hint at a real dead 
   assert.match(state.hint, /save/i)
   assert.equal(state.statusVariant, "stuck")
   assert.equal(state.atStart, false)
+})
+
+test("renderState shows save at a real dead end", () => {
+  const game = new KnightTourGame()
+  ;[ "c2", "d4", "b3", "a1" ].forEach(n => attemptMove(game, n))
+  const state = renderState(game)
+  assert.equal(state.saveVisible, true)
 })
 
 test("renderState reports no status variant mid-game", () => {

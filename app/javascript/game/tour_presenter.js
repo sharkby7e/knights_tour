@@ -24,7 +24,7 @@ export function renderState(game) {
     hint,
     atStart: game.atStart,
     atEnd: game.atEnd,
-    saveDisabled: game.visitedCount === 0,
+    saveVisible: statusVariant === "won" || statusVariant === "stuck",
     ticker: tickerView(game.fullNotationPath(), game.moves.length - 1)
   }
 }
