@@ -31,6 +31,8 @@ No spec (Stimulus controller + markup reshuffle, per repo convention — matches
 
 Built as planned, no deviations.
 
+**Followup, redesign**: went through several iterations live with the user — a small square icon-only button beside the headline read poorly, then a labeled pill sharing the hint-text line still duplicated the hint's own wording. Settled on: the "Restart or save" hint text removed entirely, the move count itself sized much larger on desktop, and a labeled "Save" pill on its own line, self-centered so it lines up with the transport row's middle Restart button beneath it. Made invisible (not display-hidden) rather than disabled/removed so its reserved space doesn't shift the transport row when it appears.
+
 ---
 
 # Consolidate Live-Play and Playback Controls (complete, kept for history)

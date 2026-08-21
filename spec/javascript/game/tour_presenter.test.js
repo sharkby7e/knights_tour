@@ -69,13 +69,11 @@ test("renderState shows save once all 64 squares are visited", () => {
   assert.equal(state.saveVisible, true)
 })
 
-test("renderState reports the move count and a restart/save hint at a real dead end", () => {
+test("renderState reports the move count and stuck variant at a real dead end", () => {
   const game = new KnightTourGame()
   ;[ "c2", "d4", "b3", "a1" ].forEach(n => attemptMove(game, n))
   const state = renderState(game)
   assert.equal(state.status, "4")
-  assert.match(state.hint, /restart/i)
-  assert.match(state.hint, /save/i)
   assert.equal(state.statusVariant, "stuck")
   assert.equal(state.atStart, false)
 })
