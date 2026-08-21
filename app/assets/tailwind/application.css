@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+html {
+  /* Always reserve the scrollbar's width, whether or not the page actually needs
+     to scroll. Without this, two pages whose content heights straddle the viewport
+     boundary differently (one scrolls, one doesn't) render their centered content
+     at different horizontal offsets purely from the scrollbar appearing/disappearing. */
+  scrollbar-gutter: stable;
+}
+
 @font-face {
   font-family: "Poppins";
   font-style: normal;
