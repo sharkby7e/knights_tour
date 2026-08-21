@@ -1,37 +1,11 @@
 # Context
 
-Live play's Save button currently sits below the transport/ticker/path-toggle, always visible, only `disabled` until at least one move has been made — so it's clickable throughout the whole mid-game, letting the user save any partial position they like.
-
-The user wants to tighten this: Save should be hidden entirely until the game is actually over (won, or stuck with no legal moves left), then appear right next to the status text (where the move count / "You won!" / stuck message shows). Mid-tour saving is being deliberately given up — confirmed explicitly with the user (they first asked to keep some form of mid-tour saving, then reversed that: "let's just hide the button until stuck or solved. no more saving until done/stuck").
-
-This supersedes the "Save stays a separate button, disabled only when there are zero moves" decision recorded in the previous (now-shipped) plan below — that behavior is being replaced, not extended.
+Save now only appears once the game is won or stuck (no more mid-tour saving), shown as a pill next to the status area instead of a permanently-visible disabled button below the controls.
 
 # Progress
 
-- [x] 1. `tour_presenter.js`: replace `saveDisabled` with `saveVisible` (true only when `statusVariant` is `"won"` or `"stuck"`)
-- [x] 2. `new.html.erb` + `tour_controller.js`: move the Save button next to the status text, hidden by default, shown only when `state.saveVisible`
-
-# Plan
-
-### 1. `tour_presenter.js`: `saveDisabled` → `saveVisible` — shipped
-
-`renderState` currently returns `saveDisabled: game.visitedCount === 0`. Replace with `saveVisible: statusVariant === "won" || statusVariant === "stuck"`, using the `statusVariant` already computed at the top of the function. No other fields change.
-
-**Spec** (`spec/javascript/game/tour_presenter.test.js`): replace the two existing `saveDisabled` cases (no-moves → disabled, one-move → enabled) with `saveVisible` cases: false with no moves, false mid-game (one move made, not stuck/won), true at a real dead end (reuse the existing stuck fixture), true once all 64 squares are visited (reuse the existing won fixture).
-
-Built as planned, no deviations.
-
-### 2. `new.html.erb` + `tour_controller.js`: reposition and hide/show — shipped
-
-`new.html.erb` — move the Save `<button>` (currently its own block below the path-toggle row) into the status area, as a sibling of the `status` `<p>` inside a new flex-row wrapper (`status` keeps its own internal flex-col for the two-line stuck-hint case). Save button starts with a `hidden` class (matches the page's initial "choose a starting square" state, where `saveVisible` is false) and drops its `disabled`/`disabled:*` styling, since visibility now replaces the disabled state — a shown Save button is always clickable.
-
-`tour_controller.js` — in `render()`, replace `this.saveButtonTarget.disabled = state.saveDisabled` with toggling the `hidden` class off `saveButtonTarget` based on `state.saveVisible`.
-
-No spec (Stimulus controller + markup reshuffle, per repo convention — matches how the transport-row/path-toggle markup changes in the prior plan's Step 5/6 had none).
-
-Built as planned, no deviations.
-
-**Followup, redesign**: went through several iterations live with the user — a small square icon-only button beside the headline read poorly, then a labeled pill sharing the hint-text line still duplicated the hint's own wording. Settled on: the "Restart or save" hint text removed entirely, the move count itself sized much larger on desktop, and a labeled "Save" pill on its own line, self-centered so it lines up with the transport row's middle Restart button beneath it. Made invisible (not display-hidden) rather than disabled/removed so its reserved space doesn't shift the transport row when it appears.
+- [x] 1. `tour_presenter.js`: `saveDisabled` → `saveVisible` (true only when won/stuck)
+- [x] 2. Reposition Save, hide/show it, then polish the layout with the user (own line, no redundant hint text, bigger desktop count)
 
 ---
 
