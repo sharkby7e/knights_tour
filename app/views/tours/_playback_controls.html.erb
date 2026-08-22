@@ -1,5 +1,5 @@
 <% top_slot = capture do %>
-  <h1 class="font-title lg:text-center text-lg lg:text-3xl text-zinc-300 font-semibold">Tour #<%= tour.id %></h1>
+  <h1 class="font-title lg:text-center text-lg lg:text-3xl text-zinc-300 font-semibold"><%= tour.id == 87 ? "moss man" : "Tour ##{tour.id}" %></h1>
 <% end %>
 
 <% play_button = capture do %>
