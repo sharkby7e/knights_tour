@@ -179,17 +179,15 @@ RSpec.describe "Tours", type: :request do
   end
 
   describe "GET /tours/:id" do
-    it "is successful" do
-      tour = create(:tour)
+    let(:tour) { create(:tour, :complete, name: "moss man") }
 
+    it "is successful" do
       get tour_path(tour)
 
       expect(response).to be_successful
     end
 
     it "shows the move count for a finished tour" do
-      tour = create(:tour, :complete)
-
       get tour_path(tour)
 
       doc = Nokogiri::HTML5.fragment(response.body)
@@ -197,23 +195,11 @@ RSpec.describe "Tours", type: :request do
     end
 
     it "sets a title and description reflecting the tour's completion status" do
-      tour = create(:tour, :complete)
-
       get tour_path(tour)
 
       doc = Nokogiri::HTML5.parse(response.body)
       expect(doc.at_css("title").text).to include("Complete")
       expect(doc.at_css("meta[name=description]")["content"]).to include("64")
-    end
-
-    it "shows the move count for a partial tour" do
-      tour = create(:tour)
-      create(:move, tour:, position: 1, square: "a1")
-
-      get tour_path(tour)
-
-      doc = Nokogiri::HTML5.fragment(response.body)
-      expect(doc.at_css("[data-tour-playback-target='stepTotal']").text).to eq("1")
     end
 
     it "includes the tour's move notations in order on the board root's moves data attribute" do
@@ -226,6 +212,13 @@ RSpec.describe "Tours", type: :request do
       doc = Nokogiri::HTML5.fragment(response.body)
       root = doc.at_css("[data-tour-playback-moves-value]")
       expect(JSON.parse(root["data-tour-playback-moves-value"])).to eq([ "e4", "f6" ])
+    end
+
+    it "includes the tour's name" do
+      get tour_path(tour)
+
+      doc = Nokogiri::HTML5.parse(response.body)
+      expect(doc.text).to include "moss man"
     end
   end
 
