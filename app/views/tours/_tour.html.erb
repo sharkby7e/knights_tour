@@ -7,7 +7,7 @@
     <% end %>
 
     <div class="p-4 flex items-center justify-between gap-2">
-      <p class="font-title text-zinc-200"><%= tour.id == 87 ? "moss man" : "Tour ##{tour.id}" %></p>
+      <p class="font-title text-zinc-200"><%= tour.name.presence || "Tour ##{tour.id}" %></p>
       <p class="text-zinc-400 text-sm whitespace-nowrap"><%= tour.moves.size %> moves &middot; <%= time_ago_in_words(tour.created_at) %> ago</p>
     </div>
   <% end %>
