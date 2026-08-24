@@ -16,6 +16,23 @@ export default class extends Controller {
     this.showPath = true
     this.showMoveCounts = false
     this.render()
+
+    this.saveDialogTarget.addEventListener("close", () => this.unlockScroll())
+    this.hintDialogTarget.addEventListener("close", () => this.unlockScroll())
+  }
+
+  lockScroll() {
+    this.scrollY = window.scrollY
+    document.body.style.position = "fixed"
+    document.body.style.top = `-${this.scrollY}px`
+    document.body.style.width = "100%"
+  }
+
+  unlockScroll() {
+    document.body.style.position = ""
+    document.body.style.top = ""
+    document.body.style.width = ""
+    window.scrollTo(0, this.scrollY || 0)
   }
 
   move(event) {
@@ -45,6 +62,7 @@ export default class extends Controller {
   }
 
   openHintInfo() {
+    this.lockScroll()
     this.hintDialogTarget.showModal()
   }
 
@@ -60,8 +78,8 @@ export default class extends Controller {
   save() {
     this.saveErrorTarget.classList.add("hidden")
     this.nameInputTarget.value = ""
+    this.lockScroll()
     this.saveDialogTarget.showModal()
-    this.nameInputTarget.focus()
   }
 
   cancelSave() {
