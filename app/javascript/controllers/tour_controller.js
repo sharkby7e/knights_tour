@@ -3,13 +3,12 @@ import { Turbo } from "@hotwired/turbo-rails"
 import { KnightTourGame } from "#game/knight_tour_game"
 import { attemptMove, renderState } from "#game/tour_presenter"
 import { KNIGHT_SVG } from "#game/knight_svg"
-import { renderTicker } from "#game/ticker_dom"
 import { renderPath } from "#game/path_svg"
 
 export default class extends Controller {
   static targets = [
-    "square", "status", "saveButton", "tickerWindow", "tickerTrack", "stepNum",
-    "pathSvg", "startButton", "prevButton", "nextButton", "endButton", "pathToggle"
+    "square", "status", "saveButton", "pathSvg", "prevButton", "pathToggle", "controlLabel",
+    "saveDialog", "nameInput", "saveError"
   ]
 
   connect() {
@@ -22,15 +21,8 @@ export default class extends Controller {
     if (attemptMove(this.game, event.currentTarget.dataset.squareNotation)) this.render()
   }
 
-  toStart() { this.game.toStart(); this.render() }
   prev() { this.game.prev(); this.render() }
   next() { this.game.next(); this.render() }
-  toEnd() { this.game.toEnd(); this.render() }
-
-  seek(index) {
-    this.game.goTo(index + 1)
-    this.render()
-  }
 
   keydown(event) {
     if (event.key === "ArrowRight") this.next()
@@ -49,18 +41,31 @@ export default class extends Controller {
     this.render()
   }
 
-  async save() {
+  save() {
+    this.saveErrorTarget.classList.add("hidden")
+    this.nameInputTarget.value = ""
+    this.saveDialogTarget.showModal()
+    this.nameInputTarget.focus()
+  }
+
+  cancelSave() {
+    this.saveDialogTarget.close()
+  }
+
+  async confirmSave(event) {
+    event.preventDefault()
+
     const response = await fetch("/tours", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content
       },
-      body: JSON.stringify({ moves: this.game.notationPath() })
+      body: JSON.stringify({ moves: this.game.notationPath(), name: this.nameInputTarget.value })
     })
 
     if (!response.ok) {
-      this.statusTarget.textContent = "Couldn't save — try again."
+      this.saveErrorTarget.classList.remove("hidden")
       return
     }
 
@@ -84,14 +89,12 @@ export default class extends Controller {
     this.statusTarget.className = `lg:text-center whitespace-nowrap lg:whitespace-normal overflow-hidden text-zinc-100 ${size}`
     this.statusTarget.textContent = state.status
 
-    this.startButtonTarget.disabled = state.atStart
     this.prevButtonTarget.disabled = state.atStart
-    this.nextButtonTarget.disabled = state.atEnd
-    this.endButtonTarget.disabled = state.atEnd
-    this.saveButtonTarget.classList.toggle("hidden", !state.saveVisible)
-    this.stepNumTarget.textContent = this.game.visitedCount
+    this.saveButtonTarget.disabled = state.atStart
 
-    renderTicker(this.tickerTrackTarget, this.tickerWindowTarget, state.ticker, i => this.seek(i))
+    const showLabels = state.atStart || state.statusVariant !== null
+    this.controlLabelTargets.forEach(el => el.classList.toggle("hidden", !showLabels))
+
     renderPath(this.pathSvgTarget, this.showPath ? this.game.moves : [])
   }
 }

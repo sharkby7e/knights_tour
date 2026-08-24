@@ -10,7 +10,13 @@
   </button>
 <% end %>
 
-<%= render layout: "tours/controls_column", locals: { target_prefix: "tour-playback", total: tour.moves.size, top_slot: top_slot, middle_button: play_button } do %>
+<% controls_row = capture do %>
+  <%= render layout: "tours/transport", locals: { target_prefix: "tour-playback" } do %>
+    <%= play_button %>
+  <% end %>
+<% end %>
+
+<%= render layout: "tours/controls_column", locals: { target_prefix: "tour-playback", total: tour.moves.size, top_slot: top_slot, controls: controls_row } do %>
   <div class="flex items-center justify-between gap-3">
     <span class="text-xs uppercase tracking-wide text-zinc-500">Speed</span>
     <div class="speed-group">

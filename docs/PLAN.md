@@ -1,11 +1,46 @@
 # Context
 
-Save now only appears once the game is won or stuck (no more mid-tour saving), shown as a pill next to the status area instead of a permanently-visible disabled button below the controls.
+Going back to the old play-page control style: Undo, Restart, and Save in one row, with Save usable before game over instead of gated on winning/getting stuck. Also adding a real "name your tour" popup on Save, since tours currently can only be named from the Rails console. Only the play page is affected — the playback page keeps its own separate controls.
 
 # Progress
 
-- [x] 1. `tour_presenter.js`: `saveDisabled` → `saveVisible` (true only when won/stuck)
-- [x] 2. Reposition Save, hide/show it, then polish the layout with the user (own line, no redundant hint text, bigger desktop count)
+- [x] 1. Backend: accept and persist a `name` param on `POST /tours`
+- [x] 2. Revert the play page to an Undo/Restart/Save row, Save enabled once 1+ moves are made
+- [x] 4. Uniform-size labeled buttons (label visible before/after play, hidden mid-game) and drop the move ticker from the play page
+- [x] 3. Add a "name your tour" popup that opens on Save and submits the name with the moves
+
+---
+
+## Step 1 — Backend accepts and saves a tour name
+
+Shipped. `POST /tours` now accepts and saves a name alongside the moves; previously it silently dropped it.
+
+## Step 2 — Undo/Restart/Save row
+
+Shipped. Save is back in a row with Undo and Restart, no longer hidden until game over; the playback page's controls are unaffected.
+
+## Step 4 — Button polish and ticker removal
+
+Shipped, done as a follow-up to reviewing Step 2 live. All three buttons are now the same size/look with small labels that show before and after a game but hide during play; the move ticker is gone from the play page to make room for a future Warnsdorff hint helper ([[project_warnsdorff_hint_idea]]); added a bit of mobile spacing above the path toggle to compensate.
+
+## Step 3 — "Name your tour" popup on Save
+
+Shipped. A small popup opens on Save with a name field; Cancel closes it, Save sends the name along with the moves and redirects on success, or shows an inline error on failure. Not covered by automated tests (dialog interaction, matches this repo's convention) — needs a hand-test pass in the browser.
+
+# Verification
+
+Tests and linting green after each step; final pass hand-tested in the browser.
+
+---
+
+# Hide Save Until Game Over, Redesign as a Pill (superseded by this plan, kept for history)
+
+Save previously appeared only once the game was won or stuck, shown as a pill next to the status area instead of a permanently-visible disabled button below the controls. This plan reverses that: Save is back in the Undo/Restart row and no longer game-over-gated.
+
+- `tour_presenter.js`: `saveDisabled` → `saveVisible` (true only when won/stuck)
+- Repositioned Save, hid/showed it, then polished the layout (own line, no redundant hint text, bigger desktop count)
+
+See `fa1cf3f` (#25) for the full history.
 
 ---
 

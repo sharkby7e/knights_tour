@@ -1,7 +1,6 @@
 import { Square } from "#game/square"
 import { IllegalMoveError } from "#game/knight_tour_game"
 import { boardView } from "#game/board_view"
-import { tickerView } from "#game/ticker_view"
 
 export function attemptMove(game, notation) {
   try {
@@ -20,9 +19,6 @@ export function renderState(game) {
     squares: boardView(game),
     status,
     statusVariant,
-    atStart: game.atStart,
-    atEnd: game.atEnd,
-    saveVisible: statusVariant === "won" || statusVariant === "stuck",
-    ticker: tickerView(game.fullNotationPath(), game.moves.length - 1)
+    atStart: game.atStart
   }
 }

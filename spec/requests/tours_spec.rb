@@ -136,13 +136,6 @@ RSpec.describe "Tours", type: :request do
       expect(links["Tours"]["class"]).not_to include("text-accent")
     end
 
-    it "renders the move ticker" do
-      get root_path
-
-      doc = Nokogiri::HTML5.fragment(response.body)
-      expect(doc.at_css(".move-ticker")).to be_present
-    end
-
     it "renders a restart button in the transport row" do
       get root_path
 
@@ -251,6 +244,13 @@ RSpec.describe "Tours", type: :request do
 
       expect(response.status).to eq(422)
       expect(error_messages).to include("can't be blank")
+    end
+
+    it "saves the submitted name on the tour" do
+      post tours_path, params: { moves: [ "e4", "f6" ], name: "Knight's Gambit" }.to_json,
+                        headers: { "Content-Type" => "application/json" }
+
+      expect(Tour.last.name).to eq("Knight's Gambit")
     end
   end
 end

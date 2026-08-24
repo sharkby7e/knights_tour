@@ -236,4 +236,15 @@ html {
   .trail {
     box-shadow: inset 0 0 0 999px var(--color-board-trail);
   }
+
+  /* Save-name dialog: Tailwind's preflight zeroes margin on all elements,
+     which breaks the browser's native margin:auto centering for an open
+     <dialog>. ::backdrop also isn't reachable via Tailwind utilities. */
+  .save-dialog {
+    margin: auto;
+  }
+
+  .save-dialog::backdrop {
+    @apply bg-black/60;
+  }
 }
