@@ -18,25 +18,35 @@
 
     <% top_slot = capture do %>
       <p data-tour-target="status" class="lg:text-center text-lg lg:text-2xl text-zinc-300 whitespace-nowrap lg:whitespace-normal overflow-hidden">Choose a starting square</p>
-
-      <button type="button" data-tour-target="saveButton" data-action="click->tour#save"
-              class="hidden flex items-center gap-1 mt-1 bg-accent hover:bg-accent-hover text-zinc-950 pl-2 pr-2.5 py-1 rounded-full text-xs font-medium transition-colors duration-200 cursor-pointer">
-        <%= render "tours/save_icon" %>
-        Save
-      </button>
     <% end %>
 
-    <% restart_button = capture do %>
-      <button type="button" class="play" title="Restart" aria-label="Restart"
-              data-action="click->tour#restart">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="23 4 23 10 17 10"/>
-          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-        </svg>
-      </button>
+    <% controls_row = capture do %>
+      <div class="transport">
+        <button type="button" title="Undo" aria-label="Undo"
+                data-tour-target="prevButton" data-action="click->tour#prev"
+                class="flex-col gap-0.5 w-14 h-12 lg:w-16 lg:h-14">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          <span data-tour-target="controlLabel" class="text-[9px] uppercase tracking-wide">Undo</span>
+        </button>
+        <button type="button" title="Restart" aria-label="Restart"
+                data-action="click->tour#restart"
+                class="flex-col gap-0.5 w-14 h-12 lg:w-16 lg:h-14">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          <span data-tour-target="controlLabel" class="text-[9px] uppercase tracking-wide">Restart</span>
+        </button>
+        <button type="button" title="Save" aria-label="Save"
+                data-tour-target="saveButton" data-action="click->tour#save"
+                class="flex-col gap-0.5 w-14 h-12 lg:w-16 lg:h-14">
+          <%= render "tours/save_icon" %>
+          <span data-tour-target="controlLabel" class="text-[9px] uppercase tracking-wide">Save</span>
+        </button>
+      </div>
     <% end %>
 
-    <%= render layout: "tours/controls_column", locals: { target_prefix: "tour", total: 64, top_slot: top_slot, middle_button: restart_button } do %>
+    <%= render layout: "tours/controls_column", locals: { target_prefix: "tour", top_slot: top_slot, controls: controls_row, show_ticker: false } do %>
     <% end %>
   </div>
 </div>

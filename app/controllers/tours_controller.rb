@@ -14,8 +14,8 @@ class ToursController < ApplicationController
   def show; end
 
   def create
-    tour = Tour.new
-    create_params.each_with_index { |square, i| tour.moves.build(square:, position: i + 1) }
+    tour = Tour.new(name: create_params[:name])
+    create_params.fetch(:moves, []).each.with_index(1) { |square, position| tour.moves.build(square:, position:) }
 
     if tour.save(context: :save_tour)
       render json: { redirect_url: tour_path(tour) }
@@ -31,6 +31,6 @@ class ToursController < ApplicationController
   end
 
   def create_params
-    params.permit(moves: []).fetch(:moves, [])
+    params.permit(:name, moves: [])
   end
 end
