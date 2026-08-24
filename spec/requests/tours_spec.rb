@@ -112,7 +112,7 @@ RSpec.describe "Tours", type: :request do
       get tours_path
 
       doc = Nokogiri::HTML5.parse(response.body)
-      expect(doc.at_css("title").text).to eq("Saved Tours – A Knight's Tour")
+      expect(doc.at_css("title").text).to eq("Saved Tours – A Knight’s Tour")
       expect(doc.at_css("meta[name=description]")["content"]).to include("saved")
     end
   end
@@ -161,9 +161,9 @@ RSpec.describe "Tours", type: :request do
       get root_path
 
       doc = Nokogiri::HTML5.parse(response.body)
-      expect(doc.at_css("title").text).to eq("A Knight's Tour")
+      expect(doc.at_css("title").text).to eq("A Knight’s Tour")
       expect(doc.at_css("meta[name=description]")["content"]).to be_present
-      expect(doc.at_css("meta[property='og:title']")["content"]).to eq("A Knight's Tour")
+      expect(doc.at_css("meta[property='og:title']")["content"]).to eq("A Knight’s Tour")
       expect(doc.at_css("meta[property='og:description']")["content"]).to be_present
       expect(doc.at_css("meta[property='og:image']")["content"]).to eq("#{request.base_url}/icon.png")
       expect(doc.at_css("meta[property='og:url']")["content"]).to eq(root_url)
