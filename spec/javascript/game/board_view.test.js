@@ -36,6 +36,15 @@ test("a stuck game colors every square bg-board-stuck, overriding legal/current/
   assert.ok(views.every(v => v.bgClass === "bg-board-stuck"))
 })
 
+test("a won game colors every square bg-board-stuck, same as a stuck game", () => {
+  const game = new KnightTourGame()
+  game.moves = Square.all()
+  assert.ok(game.won)
+
+  const views = boardView(game)
+  assert.ok(views.every(v => v.bgClass === "bg-board-stuck"))
+})
+
 test("the current square is highlighted regardless of checkerboard parity", () => {
   const game = new KnightTourGame()
   game.visit(Square.fromNotation("a1"))

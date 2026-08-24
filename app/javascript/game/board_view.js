@@ -11,6 +11,7 @@ const BG = {
 }
 
 export function squareView(game, square) {
+  const won = game.won
   const stuck = game.stuck
   const current = !!game.currentSquare && square.equals(game.currentSquare)
   const visited = game.visited(square)
@@ -20,8 +21,8 @@ export function squareView(game, square) {
   const legal = !stuck && game.visitedCount > 0 && game.legalMovesFrom.some(sq => sq.equals(square))
   const legalDegree = legal ? degreeOf(game, square) : null
   const dark = (square.x + square.y) % 2 === 1
-  const bgClass = stuck ? BG.stuck : legal ? BG.legal : current ? BG.current : visited ? BG.visited : dark ? BG.dark : BG.light
-  return { square, stuck, current, visited, legal, legalDegree, dark, bgClass }
+  const bgClass = won || stuck ? BG.stuck : legal ? BG.legal : current ? BG.current : visited ? BG.visited : dark ? BG.dark : BG.light
+  return { square, won, stuck, current, visited, legal, legalDegree, dark, bgClass }
 }
 
 export function boardView(game) {
