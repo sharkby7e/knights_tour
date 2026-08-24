@@ -7,8 +7,8 @@ import { renderPath } from "#game/path_svg"
 
 export default class extends Controller {
   static targets = [
-    "square", "status", "saveButton", "pathSvg", "prevButton", "pathToggle", "controlLabel",
-    "saveDialog", "nameInput", "saveError", "moveCountToggle", "hintDialog"
+    "square", "status", "saveButton", "pathSvg", "prevButton", "restartButton", "transport", "pathToggle", "controlLabel",
+    "saveDialog", "nameInput", "saveError", "moveCountToggle", "hintDialog", "howToPlayDialog"
   ]
 
   connect() {
@@ -19,6 +19,7 @@ export default class extends Controller {
 
     this.saveDialogTarget.addEventListener("close", () => this.unlockScroll())
     this.hintDialogTarget.addEventListener("close", () => this.unlockScroll())
+    this.howToPlayDialogTarget.addEventListener("close", () => this.unlockScroll())
   }
 
   lockScroll() {
@@ -68,6 +69,15 @@ export default class extends Controller {
 
   closeHintInfo() {
     this.hintDialogTarget.close()
+  }
+
+  openHowToPlay() {
+    this.lockScroll()
+    this.howToPlayDialogTarget.showModal()
+  }
+
+  closeHowToPlay() {
+    this.howToPlayDialogTarget.close()
   }
 
   restart() {
@@ -132,10 +142,12 @@ export default class extends Controller {
     this.statusTarget.textContent = state.status
 
     this.prevButtonTarget.disabled = state.atStart
+    this.restartButtonTarget.disabled = state.atStart
     this.saveButtonTarget.disabled = state.atStart
 
     const showLabels = state.atStart || state.statusVariant !== null
     this.controlLabelTargets.forEach(el => el.classList.toggle("hidden", !showLabels))
+    this.transportTarget.classList.toggle("compact", !showLabels)
 
     renderPath(this.pathSvgTarget, this.showPath ? this.game.moves : [])
   }
