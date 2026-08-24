@@ -7,7 +7,7 @@ Going back to the old play-page control style: Undo, Restart, and Save in one ro
 - [x] 1. Backend: accept and persist a `name` param on `POST /tours`
 - [x] 2. Revert the play page to an Undo/Restart/Save row, Save enabled once 1+ moves are made
 - [x] 4. Uniform-size labeled buttons (label visible before/after play, hidden mid-game) and drop the move ticker from the play page
-- [ ] 3. Add a "name your tour" popup that opens on Save and submits the name with the moves
+- [x] 3. Add a "name your tour" popup that opens on Save and submits the name with the moves
 
 ---
 
@@ -25,7 +25,7 @@ Shipped, done as a follow-up to reviewing Step 2 live. All three buttons are now
 
 ## Step 3 — "Name your tour" popup on Save
 
-Not yet built. A small popup opens on Save with a name field; Cancel closes it, Save sends the name along with the moves and redirects on success. Verified by hand in the browser, not automated (matches this repo's convention for dialog interactions).
+Shipped. A small popup opens on Save with a name field; Cancel closes it, Save sends the name along with the moves and redirects on success, or shows an inline error on failure. Not covered by automated tests (dialog interaction, matches this repo's convention) — needs a hand-test pass in the browser.
 
 # Verification
 

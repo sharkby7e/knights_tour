@@ -7,7 +7,8 @@ import { renderPath } from "#game/path_svg"
 
 export default class extends Controller {
   static targets = [
-    "square", "status", "saveButton", "pathSvg", "prevButton", "pathToggle", "controlLabel"
+    "square", "status", "saveButton", "pathSvg", "prevButton", "pathToggle", "controlLabel",
+    "saveDialog", "nameInput", "saveError"
   ]
 
   connect() {
@@ -40,18 +41,31 @@ export default class extends Controller {
     this.render()
   }
 
-  async save() {
+  save() {
+    this.saveErrorTarget.classList.add("hidden")
+    this.nameInputTarget.value = ""
+    this.saveDialogTarget.showModal()
+    this.nameInputTarget.focus()
+  }
+
+  cancelSave() {
+    this.saveDialogTarget.close()
+  }
+
+  async confirmSave(event) {
+    event.preventDefault()
+
     const response = await fetch("/tours", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content
       },
-      body: JSON.stringify({ moves: this.game.notationPath() })
+      body: JSON.stringify({ moves: this.game.notationPath(), name: this.nameInputTarget.value })
     })
 
     if (!response.ok) {
-      this.statusTarget.textContent = "Couldn't save — try again."
+      this.saveErrorTarget.classList.remove("hidden")
       return
     }
 
