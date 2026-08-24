@@ -8,12 +8,13 @@ import { renderPath } from "#game/path_svg"
 export default class extends Controller {
   static targets = [
     "square", "status", "saveButton", "pathSvg", "prevButton", "pathToggle", "controlLabel",
-    "saveDialog", "nameInput", "saveError"
+    "saveDialog", "nameInput", "saveError", "moveCountToggle", "hintDialog"
   ]
 
   connect() {
     this.game = new KnightTourGame()
     this.showPath = true
+    this.showMoveCounts = false
     this.render()
   }
 
@@ -34,6 +35,21 @@ export default class extends Controller {
     this.pathToggleTarget.classList.toggle("on", this.showPath)
     this.pathToggleTarget.setAttribute("aria-pressed", String(this.showPath))
     this.render()
+  }
+
+  toggleMoveCounts() {
+    this.showMoveCounts = !this.showMoveCounts
+    this.moveCountToggleTarget.classList.toggle("on", this.showMoveCounts)
+    this.moveCountToggleTarget.setAttribute("aria-pressed", String(this.showMoveCounts))
+    this.render()
+  }
+
+  openHintInfo() {
+    this.hintDialogTarget.showModal()
+  }
+
+  closeHintInfo() {
+    this.hintDialogTarget.close()
   }
 
   restart() {
@@ -81,7 +97,14 @@ export default class extends Controller {
       const interactive = view.legal ? "cursor-pointer hover:brightness-110 hover:scale-105" : ""
       const landing = view.current ? "animate-pop" : ""
       el.className = `flex items-center justify-center border border-gray-500 transition-colors duration-200 ease-out ${view.bgClass} ${interactive} ${landing}`
-      el.innerHTML = view.current ? KNIGHT_SVG : ""
+
+      if (view.current) {
+        el.innerHTML = KNIGHT_SVG
+      } else if (this.showMoveCounts && view.legal) {
+        el.innerHTML = `<span class="text-2xl lg:text-4xl font-bold text-zinc-900/40">${view.legalDegree}</span>`
+      } else {
+        el.innerHTML = ""
+      }
     })
 
     const counting = state.statusVariant !== "won" && this.game.visitedCount > 0

@@ -44,3 +44,13 @@ test("the current square is highlighted regardless of checkerboard parity", () =
   assert.ok(view.current)
   assert.equal(view.bgClass, "bg-board-current")
 })
+
+test("legal squares report their Warnsdorff degree, non-legal squares report null", () => {
+  const game = new KnightTourGame()
+  game.visit(Square.fromNotation("a1"))
+
+  const c2 = squareView(game, Square.fromNotation("c2"))
+  const h8 = squareView(game, Square.fromNotation("h8"))
+  assert.equal(c2.legalDegree, 5)
+  assert.equal(h8.legalDegree, null)
+})
