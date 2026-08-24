@@ -104,6 +104,7 @@ export default class extends Controller {
     }
 
     const { redirect_url } = await response.json()
+    this.saveDialogTarget.close()
     Turbo.visit(redirect_url)
   }
 
