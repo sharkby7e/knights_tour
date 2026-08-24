@@ -1,39 +1,42 @@
 # Context
 
-Going back to the old play-page control style: Undo, Restart, and Save in one row, with Save usable before game over instead of gated on winning/getting stuck. Also adding a real "name your tour" popup on Save, since tours currently can only be named from the Rails console. Only the play page is affected — the playback page keeps its own separate controls.
+Adding a Warnsdorff's-rule "helper" toggle to the play page, in the space freed up by the previous branch's ticker removal. When on, every currently-legal square shows how many onward moves it would leave (its "degree"); the player applies the rule themselves by picking the lowest number. A small info icon opens a modal explaining the rule. This is purely client-side — the in-progress game has no server-side state until Save ([[project_live_play_logic_stays_client_side]]).
 
 # Progress
 
-- [x] 1. Backend: accept and persist a `name` param on `POST /tours`
-- [x] 2. Revert the play page to an Undo/Restart/Save row, Save enabled once 1+ moves are made
-- [x] 4. Uniform-size labeled buttons (label visible before/after play, hidden mid-game) and drop the move ticker from the play page
-- [x] 3. Add a "name your tour" popup that opens on Save and submits the name with the moves
+- [x] 1. `warnsdorff.js`: pure degree-calculation module
+- [x] 2. Surface `legalDegree` on legal squares in `board_view.js`
+- [x] 3. Wire up the toggle, board overlay, and info modal
 
 ---
 
-## Step 1 — Backend accepts and saves a tour name
+## Step 1 — Degree calculation
 
-Shipped. `POST /tours` now accepts and saves a name alongside the moves; previously it silently dropped it.
+Shipped. `degreeOf(game, square)` in `app/javascript/game/warnsdorff.js`, tested in `warnsdorff.test.js`.
 
-## Step 2 — Undo/Restart/Save row
+## Step 2 — Surface it on the board
 
-Shipped. Save is back in a row with Undo and Restart, no longer hidden until game over; the playback page's controls are unaffected.
+Shipped. `squareView` in `board_view.js` gains a `legalDegree` field (the degree when legal, `null` otherwise), tested in `board_view.test.js`.
 
-## Step 4 — Button polish and ticker removal
+## Step 3 — Toggle, overlay, and info modal
 
-Shipped, done as a follow-up to reviewing Step 2 live. All three buttons are now the same size/look with small labels that show before and after a game but hide during play; the move ticker is gone from the play page to make room for a future Warnsdorff hint helper ([[project_warnsdorff_hint_idea]]); added a bit of mobile spacing above the path toggle to compensate.
-
-## Step 3 — "Name your tour" popup on Save
-
-Shipped. A small popup opens on Save with a name field; Cancel closes it, Save sends the name along with the moves and redirects on success, or shows an inline error on failure. Not covered by automated tests (dialog interaction, matches this repo's convention) — needs a hand-test pass in the browser.
+Shipped, pending hand-test on phone. "Show move counts" toggle (off by default) in `new.html.erb`'s free slot; legal squares show their number when it's on. A second `<dialog>` (info icon next to the toggle) explains the rule; `.save-dialog` renamed to `.modal` since both dialogs share that styling now.
 
 # Verification
 
-Tests and linting green after each step; final pass hand-tested in the browser.
+`node --test` and `bundle exec rspec` green after steps 1-2, `bin/rubocop` clean throughout. Step 3 hand-tested in the browser.
 
 ---
 
-# Hide Save Until Game Over, Redesign as a Pill (superseded by this plan, kept for history)
+# Restore Undo/Restart/Save Row (complete, kept for history)
+
+Reverted the play page's Save button from a game-over-gated pill back to an always-visible Undo/Restart/Save row (enabled after the first move), added a real "name your tour" popup on Save (previously console-only), and removed the play page's moves ticker to free up space for the Warnsdorff helper above.
+
+See PR #27 for the full history.
+
+---
+
+# Hide Save Until Game Over, Redesign as a Pill (superseded, kept for history)
 
 Save previously appeared only once the game was won or stuck, shown as a pill next to the status area instead of a permanently-visible disabled button below the controls. This plan reverses that: Save is back in the Undo/Restart row and no longer game-over-gated.
 
