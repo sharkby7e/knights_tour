@@ -17,7 +17,9 @@ servers:
 # cert once DNS for `host` resolves to this server.
 proxy:
   ssl: true
-  host: sidquinsaat.com
+  hosts:
+    - sidquinsaat.com
+    - www.sidquinsaat.com
   app_port: 3000
 
 # Where you keep your container images.
