@@ -68,4 +68,4 @@ gem "rspec-rails", "~> 8.0", groups: [ :development, :test ]
 
 gem "factory_bot_rails", "~> 6.5", group: :test
 
-gem "ruby-lsp", "~> 0.26.10", group: :development, require: false
+gem "ruby-lsp", "~> 0.26.11", group: :development, require: false
