@@ -82,6 +82,21 @@ jobs:
       - name: Run RSpec
         run: bundle exec rspec
 
+  test_js:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .tool-versions
+
+      - name: Run JS tests
+        run: bin/jstest
+
   lint:
     runs-on: ubuntu-latest
     env:
