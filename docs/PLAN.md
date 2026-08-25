@@ -1,30 +1,41 @@
 # Context
 
-Two small play-page fixes bundled together: (1) the Restart button is currently always clickable, even before the first move — doesn't make sense to "restart" a game that hasn't started, so it should be disabled at the same time Undo/Save already are (`state.atStart`). (2) A "How to Play" link near the controls opens a modal with brief rules, mirroring the existing Warnsdorff-helper info modal pattern.
+A new "Statistics" page at `/stats`, linked from the title-bar nav alongside "Play" and "Tours". It shows aggregate numbers across every saved `Tour` (complete and incomplete both count) — total tours, complete/incomplete split, total moves made, average moves per tour — plus a heatmap-style board showing which squares get visited most often, colored by intensity rather than labeled with raw numbers. This is the "most-visited squares" feature the `Move`-as-first-class-model schema was originally chosen to make cheap (see History: Enable Saving Tours).
 
 # Progress
 
-- [x] 1. Disable Restart at `atStart`, matching Undo/Save
-- [x] 2. "How to Play" link + modal
+- [ ] 1. `Move.visit_counts` query method
+- [ ] 2. `StatsController#show` + route, assembling the tour/move numbers
+- [ ] 3. Stats page view: stat tiles + nav link
+- [ ] 4. Heatmap board partial, colored by visit intensity
 
 ---
 
-## Step 1 — Disable Restart at atStart
+## Step 1 — `Move.visit_counts`
 
-Mirrors the existing `prevButtonTarget`/`saveButtonTarget` disabling already in `tour_controller.js`'s `render()`. No new pure-logic behavior (`state.atStart` already exists in `renderState`), so this is a controller-wiring change only — no new spec, consistent with this repo's existing no-coverage-on-Stimulus-controllers posture.
+A class method on `Move` doing `group(:square).count`, returning `{ "e4" => 3, ... }` across all tours (no scoping to complete-only). Model spec covering: counts accumulate across multiple tours, a square with zero visits is simply absent from the hash.
 
-## Step 2 — How to Play link + modal
+## Step 2 — `StatsController#show` + route
 
-A small text-link row (styled like the other controls-column rows) opens a third `<dialog>` with plain-language rules, reusing the scroll-lock/unlock pattern already wired for the save and hint dialogs.
+`get "stats" => "stats#show", as: :stats`. Controller computes: total tours, complete count, incomplete count, total moves, average moves per tour (guard divide-by-zero when there are no tours), and `Move.visit_counts` for the heatmap. Request spec seeds a couple of tours/moves via factories and asserts the numbers land in the rendered HTML; also covers the zero-tours case rendering without error.
+
+## Step 3 — Stats page view: stat tiles + nav link
+
+Stat-tile row (reusing this repo's existing tile/pill visual language) for total tours, complete vs incomplete, total moves, average tour length. Add "Statistics" to `_titlebar.html.erb` next to Play/Tours, active-state styled like the existing two. Request-spec coverage mirrors the existing nav assertions in `tours_spec.rb` (link present, active-state class when on `/stats`).
+
+## Step 4 — Heatmap board partial, colored by visit intensity
+
+New partial reusing the `Square.all` 8×8 SVG grid pattern from `_board_path.html.erb`, but each square's fill is interpolated between the board's base color and the accent color by `count / max_count` instead of the fixed light/dark checker — zero-visit squares stay at the board's base color. Load the `dataviz` skill before implementing the color-scale math (sequential-palette approach) rather than hand-rolling interpolation. Spec (request or helper-level) asserts a known highest-count square renders at full intensity and an unvisited square renders at the base color, using fixed seeded move data.
 
 # Verification
 
-`node --test` and `bundle exec rspec` green, `bin/rubocop` clean. Hand-tested in the browser (no automated Stimulus-controller coverage, per existing convention).
+`bundle exec rspec` and `bin/rubocop` clean. Hand-tested in the browser (no automated browser-driving, per existing convention).
 
 ---
 
 # History
 
+- **Guard Restart, How-to-Play Modal, Shared Game-Over Board Color** — disabled Restart until the first move like Undo/Save; added a "How to Play" info modal. See PR #31.
 - **Add Warnsdorff's-Rule Helper Toggle** — client-side "Show move counts" toggle on the play page, with an info modal explaining the rule. See PR #28.
 - **Restore Undo/Restart/Save Row** — Save moved back to an always-visible row with a real "name your tour" popup; ticker removed to free up space. See PR #27.
 - **Hide Save Until Game Over, Redesign as a Pill (superseded)** — gated Save behind game-over as a pill; later reversed by the entry above. See `fa1cf3f` (#25).
