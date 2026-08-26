@@ -50,15 +50,11 @@ export default class extends Controller {
 
   togglePath() {
     this.showPath = !this.showPath
-    this.pathToggleTarget.classList.toggle("on", this.showPath)
-    this.pathToggleTarget.setAttribute("aria-pressed", String(this.showPath))
     this.render()
   }
 
   toggleMoveCounts() {
     this.showMoveCounts = !this.showMoveCounts
-    this.moveCountToggleTarget.classList.toggle("on", this.showMoveCounts)
-    this.moveCountToggleTarget.setAttribute("aria-pressed", String(this.showMoveCounts))
     this.render()
   }
 
@@ -120,6 +116,11 @@ export default class extends Controller {
 
   render() {
     const state = renderState(this.game)
+
+    this.pathToggleTarget.classList.toggle("on", this.showPath)
+    this.pathToggleTarget.setAttribute("aria-pressed", String(this.showPath))
+    this.moveCountToggleTarget.classList.toggle("on", this.showMoveCounts)
+    this.moveCountToggleTarget.setAttribute("aria-pressed", String(this.showMoveCounts))
 
     state.squares.forEach((view, i) => {
       const el = this.squareTargets[i]

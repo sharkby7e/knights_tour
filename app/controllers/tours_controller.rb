@@ -9,7 +9,9 @@ class ToursController < ApplicationController
     @pagy, @tours = pagy(scope, limit: 6)
   end
 
-  def new; end
+  def new
+    @squares = Square.all
+  end
 
   def show; end
 
