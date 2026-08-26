@@ -64,4 +64,19 @@ RSpec.describe Move do
 
     expect(second).not_to be_valid
   end
+
+  describe ".visit_counts" do
+    it "counts visits to a square across every tour" do
+      create(:move, tour: create(:tour), position: 1, square: "e4")
+      create(:move, tour: create(:tour), position: 1, square: "e4")
+
+      expect(Move.visit_counts["e4"]).to eq(2)
+    end
+
+    it "omits squares with no visits" do
+      create(:move, tour: create(:tour), position: 1, square: "e4")
+
+      expect(Move.visit_counts).not_to have_key("a1")
+    end
+  end
 end

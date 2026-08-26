@@ -4,7 +4,7 @@ A new "Statistics" page at `/stats`, linked from the title-bar nav alongside "Pl
 
 # Progress
 
-- [ ] 1. `Move.visit_counts` query method
+- [x] 1. `Move.visit_counts` query method
 - [ ] 2. `StatsController#show` + route, assembling the tour/move numbers
 - [ ] 3. Stats page view: stat tiles + nav link
 - [ ] 4. Heatmap board partial, colored by visit intensity
