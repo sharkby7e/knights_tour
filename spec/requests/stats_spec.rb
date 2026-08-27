@@ -20,6 +20,7 @@ RSpec.describe "Stats", type: :request do
       expect(doc.at_css("[data-stat='complete-tours'] dd").text).to eq("1")
       expect(doc.at_css("[data-stat='incomplete-tours'] dd").text).to eq("1")
       expect(doc.at_css("[data-stat='average-moves'] dd").text).to eq("32.5")
+      expect(doc.at_css("[data-stat='total-moves'] dd").text).to eq("65")
     end
 
     it "renders without error when there are no tours" do
@@ -28,6 +29,7 @@ RSpec.describe "Stats", type: :request do
       doc = Nokogiri::HTML5.fragment(response.body)
       expect(doc.at_css("[data-stat='total-tours'] dd").text).to eq("0")
       expect(doc.at_css("[data-stat='average-moves'] dd").text).to eq("—")
+      expect(doc.at_css("[data-stat='total-moves'] dd").text).to eq("0")
     end
 
     it "shows the distinct discovered-tours count against the total possible" do
