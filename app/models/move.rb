@@ -9,6 +9,8 @@ class Move < ApplicationRecord
                         uniqueness: { scope: :tour_id }
   validate :legal_knight_move_from_previous
 
+  def self.visit_counts = group(:square).count
+
   def to_square = Square.from_notation(square)
 
   private

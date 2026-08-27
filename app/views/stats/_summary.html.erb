@@ -1,0 +1,18 @@
+<dl class="w-full grid grid-cols-2 divide-x divide-y divide-zinc-600/60 bg-zinc-700/60 border border-zinc-600/60 rounded-2xl overflow-hidden">
+  <div data-stat="total-tours" class="p-4 text-center">
+    <dt class="text-xs uppercase tracking-wide text-zinc-400">Total tours</dt>
+    <dd class="text-3xl font-title font-semibold text-zinc-100"><%= @tour_count %></dd>
+  </div>
+  <div data-stat="complete-tours" class="p-4 text-center">
+    <dt class="text-xs uppercase tracking-wide text-zinc-400">Complete</dt>
+    <dd class="text-3xl font-title font-semibold text-zinc-100"><%= @complete_count %></dd>
+  </div>
+  <div data-stat="incomplete-tours" class="p-4 text-center">
+    <dt class="text-xs uppercase tracking-wide text-zinc-400">Incomplete</dt>
+    <dd class="text-3xl font-title font-semibold text-zinc-100"><%= @incomplete_count %></dd>
+  </div>
+  <div data-stat="average-moves" class="p-4 text-center">
+    <dt class="text-xs uppercase tracking-wide text-zinc-400">Avg. moves/tour</dt>
+    <dd class="text-3xl font-title font-semibold text-zinc-100"><%= @average_moves || "—" %></dd>
+  </div>
+</dl>

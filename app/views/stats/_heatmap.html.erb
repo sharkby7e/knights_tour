@@ -1,0 +1,22 @@
+<div class="flex flex-col items-center gap-3">
+  <div class="relative aspect-square w-[min(90vw,24rem)] lg:w-[56rem] shrink-0 rounded-lg overflow-hidden shadow-lg">
+    <svg viewBox="0 0 100 100" class="w-full h-full block" role="img"
+         aria-label="Heatmap of how often each square has been visited across every saved tour" data-stat="heatmap">
+      <% Square.all.each do |square| %>
+        <% count = @visit_counts.fetch(square.notation, 0) %>
+        <% color = heat_color(count, @min_visit_count, @max_visit_count) %>
+        <g data-square="<%= square.notation %>">
+          <title><%= square.notation %>: <%= pluralize(count, "visit") %></title>
+          <rect x="<%= (square.x - 1) * 12.5 %>" y="<%= (8 - square.y) * 12.5 %>" width="12.5" height="12.5"
+                fill="<%= color || "#27272a" %>" class="stroke-zinc-600" stroke-width="0.5" />
+        </g>
+      <% end %>
+    </svg>
+  </div>
+
+  <div data-stat="heatmap-legend" class="flex items-center gap-2 text-xs text-zinc-400">
+    <span>Fewer visits</span>
+    <div class="h-2 w-24 rounded-full" style="background: <%= heat_gradient_css %>"></div>
+    <span>More visits</span>
+  </div>
+</div>
