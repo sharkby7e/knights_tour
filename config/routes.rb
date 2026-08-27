@@ -13,4 +13,6 @@ Rails.application.routes.draw do
   root "tours#new"
 
   resources :tours, only: [ :index, :create, :show ]
+
+  resource :stats, only: :show
 end

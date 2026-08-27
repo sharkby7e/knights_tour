@@ -29,4 +29,31 @@ RSpec.describe Tour do
 
     expect(Tour.incomplete).to contain_exactly(partial, empty)
   end
+
+  describe ".distinct_complete_count" do
+    it "counts a repeated move sequence once" do
+      create(:tour, :complete)
+      create(:tour, :complete)
+
+      expect(Tour.distinct_complete_count).to eq(1)
+    end
+
+    it "counts tours with different move sequences separately" do
+      create(:tour, :complete)
+      other = create(:tour)
+      Move.insert_all(
+        COMPLETE_TOUR_SQUARES.reverse.each_with_index.map { |square, i| { tour_id: other.id, square:, position: i + 1 } }
+      )
+
+      expect(Tour.distinct_complete_count).to eq(2)
+    end
+
+    it "ignores incomplete tours" do
+      create(:tour, :complete)
+      incomplete = create(:tour)
+      create(:move, tour: incomplete, square: "a1", position: 1)
+
+      expect(Tour.distinct_complete_count).to eq(1)
+    end
+  end
 end

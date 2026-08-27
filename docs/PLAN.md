@@ -5,8 +5,8 @@ A new "Statistics" page at `/stats`, linked from the title-bar nav alongside "Pl
 # Progress
 
 - [x] 1. `Move.visit_counts` query method
-- [ ] 2. `StatsController#show` + route, assembling the tour/move numbers
-- [ ] 3. Stats page view: stat tiles + nav link
+- [x] 2. `StatsController#show` + route, assembling the tour/move numbers
+- [x] 3. Stats page view: stat tiles + nav link
 - [ ] 4. Heatmap board partial, colored by visit intensity
 
 ---
@@ -17,11 +17,11 @@ A class method on `Move` doing `group(:square).count`, returning `{ "e4" => 3, .
 
 ## Step 2 — `StatsController#show` + route
 
-`get "stats" => "stats#show", as: :stats`. Controller computes: total tours, complete count, incomplete count, total moves, average moves per tour (guard divide-by-zero when there are no tours), and `Move.visit_counts` for the heatmap. Request spec seeds a couple of tours/moves via factories and asserts the numbers land in the rendered HTML; also covers the zero-tours case rendering without error.
+`resource :stats, only: :show` (Rails' singular-resource idiom for a one-off page with no id — same `GET /stats` → `stats#show`, named `stats_path`, as a raw `get`). Controller computes: total tours, complete count, incomplete count, average moves per tour (guards divide-by-zero when there are no tours), and `Move.visit_counts` for the heatmap. Request spec seeds a couple of tours/moves via factories and asserts the numbers land in the rendered HTML; also covers the zero-tours case rendering without error.
 
 ## Step 3 — Stats page view: stat tiles + nav link
 
-Stat-tile row (reusing this repo's existing tile/pill visual language) for total tours, complete vs incomplete, total moves, average tour length. Add "Statistics" to `_titlebar.html.erb` next to Play/Tours, active-state styled like the existing two. Request-spec coverage mirrors the existing nav assertions in `tours_spec.rb` (link present, active-state class when on `/stats`).
+Stat-tile row (reusing this repo's `bg-zinc-700/60 border border-zinc-600/60 rounded-2xl` card language, laid out Monkeytype-stats-page style — big number over a small label, grouped tiles divided by hairlines) for total tours, complete vs incomplete, and average moves/tour. Added a second tile: **"Tours discovered"** — `Tour.distinct_complete_count` against `Tour::TOTAL_POSSIBLE_TOURS` (19,591,828,170,979,904 directed Hamiltonian paths on an 8×8 board, cited to mayhematics.com), with a tiny-percentage readout (`BigDecimal`-precise, not padded) and a progress-bar "thermometer" floored at 1% width so it stays visible at this scale. Added "Stats" (not "Statistics" — kept short to preserve the mobile nav fit) to `_titlebar.html.erb`. Request-spec coverage mirrors the existing nav assertions in `tours_spec.rb`.
 
 ## Step 4 — Heatmap board partial, colored by visit intensity
 
