@@ -8,11 +8,7 @@
         <g data-square="<%= square.notation %>">
           <title><%= square.notation %>: <%= pluralize(count, "visit") %></title>
           <rect x="<%= (square.x - 1) * 12.5 %>" y="<%= (8 - square.y) * 12.5 %>" width="12.5" height="12.5"
-                class="fill-zinc-800 stroke-zinc-600" stroke-width="0.5" />
-          <% if color %>
-            <circle cx="<%= (square.x - 0.5) * 12.5 %>" cy="<%= (8 - square.y + 0.5) * 12.5 %>" r="<%= StatsHelper::HEAT_DOT_RADIUS %>"
-                    fill="<%= color %>" />
-          <% end %>
+                fill="<%= color || "#27272a" %>" class="stroke-zinc-600" stroke-width="0.5" />
         </g>
       <% end %>
     </svg>

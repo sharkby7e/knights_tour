@@ -63,7 +63,7 @@ RSpec.describe "Stats", type: :request do
       expect(doc.at_css("[data-stat='discovery-bar']")["style"]).to eq("width: 1.0%")
     end
 
-    it "renders the heatmap as dots colored along a viridis spectrum, scaled to the observed min/max" do
+    it "renders the heatmap as squares colored along a viridis spectrum, scaled to the observed min/max" do
       create(:move, tour: create(:tour), position: 1, square: "a1")
       create(:move, tour: create(:tour), position: 1, square: "a1")
       create(:move, tour: create(:tour), position: 1, square: "h8")
@@ -72,9 +72,9 @@ RSpec.describe "Stats", type: :request do
 
       doc = Nokogiri::HTML5.fragment(response.body)
       svg = doc.at_css("svg[data-stat='heatmap']")
-      expect(svg.at_css("[data-square='a1'] circle")["fill"]).to eq("#fde725")
-      expect(svg.at_css("[data-square='h8'] circle")["fill"]).to eq("#440154")
-      expect(svg.at_css("[data-square='b1']").css("circle")).to be_empty
+      expect(svg.at_css("[data-square='a1'] rect")["fill"]).to eq("#fde725")
+      expect(svg.at_css("[data-square='h8'] rect")["fill"]).to eq("#440154")
+      expect(svg.at_css("[data-square='b1'] rect")["fill"]).to eq("#27272a")
     end
 
     it "renders a heatmap legend and does not error with no visits at all" do

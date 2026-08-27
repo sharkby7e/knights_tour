@@ -1,6 +1,4 @@
 module StatsHelper
-  HEAT_DOT_RADIUS = 5.5
-
   # Viridis - perceptually uniform and colorblind-safe.
   HEAT_COLOR_STOPS = [
     [ 0.0, [ 0x44, 0x01, 0x54 ] ], # purple - fewest visits
