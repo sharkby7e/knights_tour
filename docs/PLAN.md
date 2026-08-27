@@ -7,7 +7,7 @@ A new "Statistics" page at `/stats`, linked from the title-bar nav alongside "Pl
 - [x] 1. `Move.visit_counts` query method
 - [x] 2. `StatsController#show` + route, assembling the tour/move numbers
 - [x] 3. Stats page view: stat tiles + nav link
-- [ ] 4. Heatmap board partial, colored by visit intensity
+- [x] 4. Heatmap board partial, colored by visit intensity
 
 ---
 
@@ -25,7 +25,7 @@ Stat-tile row (reusing this repo's `bg-zinc-700/60 border border-zinc-600/60 rou
 
 ## Step 4 — Heatmap board partial, colored by visit intensity
 
-New partial reusing the `Square.all` 8×8 SVG grid pattern from `_board_path.html.erb`, but each square's fill is interpolated between the board's base color and the accent color by `count / max_count` instead of the fixed light/dark checker — zero-visit squares stay at the board's base color. Load the `dataviz` skill before implementing the color-scale math (sequential-palette approach) rather than hand-rolling interpolation. Spec (request or helper-level) asserts a known highest-count square renders at full intensity and an unvisited square renders at the base color, using fixed seeded move data.
+Ended up as dots, not fill color, after live iteration: each visited square gets a fixed-size dot (unvisited squares plain, gridlined, uniform-color squares — no checker), colored along a viridis (purple→teal→yellow) spectrum scaled to the observed min/max visit count, not absolute zero. Explored 6 palettes as an Artifact before picking viridis (colorblind-safe; blue/red and green/yellow/red variants tried and rejected). Desktop layout matches the play/show pages — board left, stats column (discovered-tours + summary tiles) right, vertically centered. `StatsHelper#heat_color`/`heat_gradient_css`. Request-spec coverage on rendered dot colors for known seeded counts.
 
 # Verification
 

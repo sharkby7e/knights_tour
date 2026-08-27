@@ -1,6 +1,11 @@
 <% content_for :title, "Statistics – A Knight’s Tour" %>
 <% content_for :description, "Aggregate stats across every saved Knight’s Tour, including a heatmap of the most-visited squares." %>
 
-<div class="w-full max-w-4xl flex flex-col gap-6 items-center self-start">
-  <%= render "summary" %>
+<div class="w-full flex flex-col lg:flex-row gap-y-6 lg:gap-x-16 items-center justify-center">
+  <%= render "heatmap" %>
+
+  <div class="w-full lg:w-80 flex flex-col gap-6">
+    <%= render "discovery" %>
+    <%= render "summary" %>
+  </div>
 </div>

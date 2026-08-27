@@ -1,4 +1,4 @@
-<dl class="w-full grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-zinc-600/60 bg-zinc-700/60 border border-zinc-600/60 rounded-2xl overflow-hidden">
+<dl class="w-full grid grid-cols-2 divide-x divide-y divide-zinc-600/60 bg-zinc-700/60 border border-zinc-600/60 rounded-2xl overflow-hidden">
   <div data-stat="total-tours" class="p-4 text-center">
     <dt class="text-xs uppercase tracking-wide text-zinc-400">Total tours</dt>
     <dd class="text-3xl font-title font-semibold text-zinc-100"><%= @tour_count %></dd>
@@ -16,14 +16,3 @@
     <dd class="text-3xl font-title font-semibold text-zinc-100"><%= @average_moves || "—" %></dd>
   </div>
 </dl>
-<div data-stat="discovered-tours" class="w-full bg-zinc-700/60 border border-accent/40 rounded-2xl p-5 text-center">
-  <dd class="text-5xl font-title font-semibold text-accent"><%= number_with_delimiter(@distinct_tour_count) %></dd>
-  <p class="text-sm text-zinc-400 mt-1">
-    out of <span title="<%= number_with_delimiter(Tour::TOTAL_POSSIBLE_TOURS) %>" class="text-lg font-semibold text-accent">~<%= number_to_human(Tour::TOTAL_POSSIBLE_TOURS) %></span> tours on an 8&times;8 board
-    (<a href="https://www.mayhematics.com/t/8a.htm" class="underline decoration-dotted hover:text-zinc-300">source</a>)
-  </p>
-  <div class="mt-3 h-2 w-full rounded-full bg-zinc-800 overflow-hidden">
-    <div data-stat="discovery-bar" class="h-full bg-accent" style="width: <%= @discovery_bar_percent.to_s("F") %>%"></div>
-  </div>
-  <p data-stat="discovery-percentage" class="text-xs text-zinc-500 mt-1 font-mono"><%= @discovery_percent.to_s("F") %>%</p>
-</div>

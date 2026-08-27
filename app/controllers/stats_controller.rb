@@ -8,5 +8,7 @@ class StatsController < ApplicationController
     @discovery_percent = (BigDecimal(@distinct_tour_count).div(BigDecimal(Tour::TOTAL_POSSIBLE_TOURS), 30) * 100).round(20)
     @discovery_bar_percent = [ @discovery_percent, BigDecimal(1) ].max
     @visit_counts = Move.visit_counts
+    @max_visit_count = @visit_counts.values.max || 0
+    @min_visit_count = @visit_counts.values.min || 0
   end
 end
