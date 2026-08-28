@@ -139,7 +139,8 @@ export default class extends Controller {
 
     const counting = state.statusVariant !== "won" && this.game.visitedCount > 0
     const size = counting ? "text-3xl lg:text-6xl" : "text-lg lg:text-2xl"
-    this.statusTarget.className = `lg:text-center whitespace-nowrap lg:whitespace-normal overflow-hidden text-zinc-100 ${size}`
+    const color = counting ? "text-accent" : "text-zinc-100"
+    this.statusTarget.className = `lg:text-center whitespace-nowrap lg:whitespace-normal overflow-hidden ${color} ${size}`
     this.statusTarget.textContent = state.status
 
     this.prevButtonTarget.disabled = state.atStart
