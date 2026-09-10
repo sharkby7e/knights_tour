@@ -15,4 +15,5 @@ Rails.application.routes.draw do
   resources :tours, only: [ :index, :create, :show ]
 
   resource :stats, only: :show
+  resource :about, only: :show, controller: "about"
 end

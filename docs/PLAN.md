@@ -1,31 +1,35 @@
 # Context
 
-A new "Statistics" page at `/stats`, linked from the title-bar nav alongside "Play" and "Tours". It shows aggregate numbers across every saved `Tour` (complete and incomplete both count) — total tours, complete/incomplete split, total moves made, average moves per tour — plus a heatmap-style board showing which squares get visited most often, colored by intensity rather than labeled with raw numbers. This is the "most-visited squares" feature the `Move`-as-first-class-model schema was originally chosen to make cheap (see History: Enable Saving Tours).
+A real "About" page at `/about`, linked from the title-bar nav. Personal page for the site's owner: a photo carousel of hand-solved paper knight's tours as the hero, a storytelling section (the owner's own copy — not placeholder), and a "right now" section pitching that they're looking for their next role, with contact CTAs. Decided against the earlier stashed modal approach (an "About" `<dialog>` trigger, WIP on a now-deleted `about-modal` branch) — a full page gives room for photos and real prose that a popup doesn't.
+
+Design direction agreed with the user via a comparison Artifact before building (reference: brittanychiang.com/joshwcomeau.com/lynnandtonic.com browsed for inspiration; landed closest to Comeau's playful-but-clear tone, without needing this page itself to be interactive — the knight's tour game already covers that). Reuses the app's existing dark zinc/Poppins/accent tokens rather than a new palette. Signature element: the app's own dual-stroke cyan/magenta path-line (the same visual used to trace a tour on the board) repurposed as a faint connecting thread down the page's spine, instead of a generic decorative shape. Hero leads with the photo carousel itself, not a headline block.
+
+Photos: static assets under `app/assets/images/` (not Active Storage — these are the owner's own fixed photos, not user uploads; avoids Active Storage's DB tables and, on this Kamal deploy specifically, the need for a persistent volume mount for local Disk storage). Resize/compress before committing (~1600px max width) to keep the repo light.
 
 # Progress
 
-- [x] 1. `Move.visit_counts` query method
-- [x] 2. `StatsController#show` + route, assembling the tour/move numbers
-- [x] 3. Stats page view: stat tiles + nav link
-- [x] 4. Heatmap board partial, colored by visit intensity
+- [x] 1. `/about` route + `AboutController#show` + nav link
+- [ ] 2. Page layout: photo-carousel hero, story section, "right now" CTA section, path-line spine — placeholder copy/photos matching the approved mockup
+- [ ] 3. Swap in the owner's real photos (resized) once provided
+- [ ] 4. Swap in the owner's real copy once written
 
 ---
 
-## Step 1 — `Move.visit_counts`
+## Step 1 — Route, controller, nav link
 
-A class method on `Move` doing `group(:square).count`, returning `{ "e4" => 3, ... }` across all tours (no scoping to complete-only). Model spec covering: counts accumulate across multiple tours, a square with zero visits is simply absent from the hash.
+`resource :about, only: :show`, matching the `resource :stats, only: :show` idiom already used. `AboutController#show` — no instance data needed yet (static content). Add "About" to `_titlebar.html.erb` next to Stats, active-state styled like the existing links; re-check mobile nav fit now that it's a real 4th item (previously validated with a throwaway placeholder link during the stats-page work — confirm it still holds with the real link).
 
-## Step 2 — `StatsController#show` + route
+## Step 2 — Page layout
 
-`resource :stats, only: :show` (Rails' singular-resource idiom for a one-off page with no id — same `GET /stats` → `stats#show`, named `stats_path`, as a raw `get`). Controller computes: total tours, complete count, incomplete count, average moves per tour (guards divide-by-zero when there are no tours), and `Move.visit_counts` for the heatmap. Request spec seeds a couple of tours/moves via factories and asserts the numbers land in the rendered HTML; also covers the zero-tours case rendering without error.
+`app/views/about/show.html.erb` (+ partials by section, per the repo's view-decomposition convention): hero carousel (native CSS scroll-snap, no JS library — plain `<figure>` cards, horizontal scroll), story section (prose measure, generous line-height, drop-cap per the mockup), "right now" card (accent-bordered, matching the stats page's discovered-tours tile styling) with CTA buttons (email/LinkedIn/résumé — real targets TBD from the user), and the path-line spine SVG connecting the sections. Placeholder photos (illustrated paper-sketch style, matching the mockup) and placeholder copy stand in until Steps 3–4. Request spec covers structural presence (nav link, carousel, section headings, CTA links) rather than exact copy, since copy is expected to change.
 
-## Step 3 — Stats page view: stat tiles + nav link
+## Step 3 — Real photos
 
-Stat-tile row (reusing this repo's `bg-zinc-700/60 border border-zinc-600/60 rounded-2xl` card language, laid out Monkeytype-stats-page style — big number over a small label, grouped tiles divided by hairlines) for total tours, complete vs incomplete, and average moves/tour. Added a second tile: **"Tours discovered"** — `Tour.distinct_complete_count` against `Tour::TOTAL_POSSIBLE_TOURS` (19,591,828,170,979,904 directed Hamiltonian paths on an 8×8 board, cited to mayhematics.com), with a tiny-percentage readout (`BigDecimal`-precise, not padded) and a progress-bar "thermometer" floored at 1% width so it stays visible at this scale. Added "Stats" (not "Statistics" — kept short to preserve the mobile nav fit) to `_titlebar.html.erb`. Request-spec coverage mirrors the existing nav assertions in `tours_spec.rb`.
+Once the user hands off photo files: resize/compress to web sizes, land under `app/assets/images/`, swap into the carousel partial.
 
-## Step 4 — Heatmap board partial, colored by visit intensity
+## Step 4 — Real copy
 
-Ended up as dots, not fill color, after live iteration: each visited square gets a fixed-size dot (unvisited squares plain, gridlined, uniform-color squares — no checker), colored along a viridis (purple→teal→yellow) spectrum scaled to the observed min/max visit count, not absolute zero. Explored 6 palettes as an Artifact before picking viridis (colorblind-safe; blue/red and green/yellow/red variants tried and rejected). Desktop layout matches the play/show pages — board left, stats column (discovered-tours + summary tiles) right, vertically centered. `StatsHelper#heat_color`/`heat_gradient_css`. Request-spec coverage on rendered dot colors for known seeded counts.
+Swap placeholder story/CTA text for the user's own writing once ready. Not really a red/green step — just a content pass once text exists.
 
 # Verification
 
@@ -35,6 +39,7 @@ Ended up as dots, not fill color, after live iteration: each visited square gets
 
 # History
 
+- **Statistics Page** — `/stats` with tour/move summary tiles, a "tours discovered" thermometer against the ~19.6 quadrillion possible knight's tours, and a viridis heatmap of most-visited squares (full squares, no gridlines — a Tailwind `stroke-*`-utility bug on the prod box's Linux/amd64 build silently dropped them; fixed by using inline SVG attributes instead of Tailwind classes for that element). See PR #35 and follow-up commits `e118d0f`, `fed3a42`.
 - **Guard Restart, How-to-Play Modal, Shared Game-Over Board Color** — disabled Restart until the first move like Undo/Save; added a "How to Play" info modal. See PR #31.
 - **Add Warnsdorff's-Rule Helper Toggle** — client-side "Show move counts" toggle on the play page, with an info modal explaining the rule. See PR #28.
 - **Restore Undo/Restart/Save Row** — Save moved back to an always-visible row with a real "name your tour" popup; ticker removed to free up space. See PR #27.
