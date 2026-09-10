@@ -1,0 +1,29 @@
+<%
+  spine_step = 18
+  spine_width = 360
+  # Every move has dy > 0 (no upward vectors) so y is strictly increasing along
+  # the line — that's what guarantees it never crosses itself, since two
+  # segments can only intersect if their y-ranges overlap. Weighted toward the
+  # flat (2,1) ratio over the steep (1,2) one so it covers more ground side to
+  # side than it does dropping down. A fresh shuffle per step (not a repeating
+  # cycle) keeps the left/right rhythm irregular.
+  spine_pool = [
+    [ 2, 1 ], [ 2, 1 ], [ 2, 1 ], [ -2, 1 ], [ -2, 1 ], [ -2, 1 ], [ 1, 2 ], [ -1, 2 ]
+  ].map { |dx, dy| [ dx * spine_step, dy * spine_step ] }
+  spine_rng = Random.new(11)
+  spine_points = [ [ spine_width / 2, 0 ] ]
+  while spine_points.last[1] < 1000
+    x, y = spine_points.last
+    move = spine_pool.shuffle(random: spine_rng).find { |dx, _dy| (x + dx).between?(20, spine_width - 20) }
+    spine_points << [ x + move[0], y + move[1] ]
+  end
+  spine_line = spine_points.map { |x, y| "#{x},#{y}" }.join(" ")
+%>
+<div class="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[360px]" data-about="spine" aria-hidden="true">
+  <svg viewBox="0 0 <%= spine_width %> 1000" preserveAspectRatio="none" class="sticky top-0 h-screen w-full overflow-visible opacity-40 blur-[1.5px]">
+    <polyline points="<%= spine_line %>" fill="none" stroke="#3df3ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+    <g opacity="0.75">
+      <polyline points="<%= spine_line %>" fill="none" stroke="#ff2ee0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" class="animate-pulse-line" />
+    </g>
+  </svg>
+</div>

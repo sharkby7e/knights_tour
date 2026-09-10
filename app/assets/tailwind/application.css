@@ -252,4 +252,14 @@ html {
   .modal::backdrop {
     @apply bg-black/60;
   }
+
+  /* About page's photo carousel: scrollable by design (drag/swipe/arrow
+     keys still work), just without the visible scrollbar chrome. */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }

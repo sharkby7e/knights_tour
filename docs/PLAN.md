@@ -9,7 +9,7 @@ Photos: static assets under `app/assets/images/` (not Active Storage — these a
 # Progress
 
 - [x] 1. `/about` route + `AboutController#show` + nav link
-- [ ] 2. Page layout: photo-carousel hero, story section, "right now" CTA section, path-line spine — placeholder copy/photos matching the approved mockup
+- [x] 2. Page layout: photo-carousel hero, story section, "right now" CTA section, path-line spine — placeholder copy/photos matching the approved mockup
 - [ ] 3. Swap in the owner's real photos (resized) once provided
 - [ ] 4. Swap in the owner's real copy once written
 
