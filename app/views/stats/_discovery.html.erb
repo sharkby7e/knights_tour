@@ -1,5 +1,5 @@
 <div data-stat="discovered-tours" class="w-full bg-zinc-700/60 border border-accent/40 rounded-2xl p-5 text-center">
-  <dd class="text-4xl font-title font-semibold text-accent"><%= number_with_delimiter(@distinct_tour_count) %></dd>
+  <dd class="text-4xl font-title font-semibold text-accent"><%= number_with_delimiter(@complete_count) %></dd>
   <p class="text-sm text-zinc-400 mt-1">
     out of <span title="<%= number_with_delimiter(Tour::TOTAL_POSSIBLE_TOURS) %>" class="text-lg font-semibold text-accent">~<%= number_to_human(Tour::TOTAL_POSSIBLE_TOURS) %></span> tours on an 8&times;8 board
     (<a href="https://www.mayhematics.com/t/8a.htm" class="underline decoration-dotted hover:text-zinc-300">source</a>)
