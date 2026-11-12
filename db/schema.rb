@@ -10,15 +10,15 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_22_205035) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_12_175006) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
   create_table "moves", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.integer "position", null: false
-    t.string "square", null: false
     t.bigint "tour_id", null: false
+    t.string "square", null: false
+    t.integer "position", null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["tour_id", "position"], name: "index_moves_on_tour_id_and_position", unique: true
     t.index ["tour_id", "square"], name: "index_moves_on_tour_id_and_square", unique: true
@@ -27,8 +27,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_22_205035) do
 
   create_table "tours", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.string "name"
     t.datetime "updated_at", null: false
+    t.string "name"
   end
 
   add_foreign_key "moves", "tours"
